@@ -59,6 +59,11 @@ const BUY_RESERVE = 0.5;
  * shortlist and no bot ever sold one.
  */
 const FUNDAMENTAL_BAND = 0.05;
+/**
+ * Standard deviation of aggregate passive flow per round, as a fraction of
+ * each market's liquidity parameter.
+ */
+const PASSIVE_FLOW_SD = 0.04;
 
 export function runOrderFlow(w: World, rng: RNG): void {
   if (w.order.length === 0) return;
@@ -97,6 +102,8 @@ export function runOrderFlow(w: World, rng: RNG): void {
     ranked = ranked.slice(0, SHORTLIST);
   }
 
+  applyPassiveFlow(w, rng.fork("passive"));
+
   for (const bot of w.bots) {
     const r = rng.fork(bot.id);
     if (!r.bool(ACT_P[bot.strategy] ?? 0.3)) continue;
@@ -116,6 +123,32 @@ export function runOrderFlow(w: World, rng: RNG): void {
         break;
       }
     }
+  }
+}
+
+/**
+ * Aggregate passive flow: money entering or leaving the whole asset class at
+ * once, hitting every listing in proportion to its depth.
+ *
+ * This is the market factor. Without it every artist here is statistically
+ * independent, pairwise correlation sits at zero, and the diversification tool
+ * shows portfolio variance falling to nothing as holdings are added — which is
+ * not what diversification does, and not what any real market looks like.
+ * A common *fundamental* shock is not enough on its own: the fundamental bots
+ * only work a shortlist each round, so it never reaches most quotes.
+ *
+ * It moves q directly rather than through executeTrade. Attributing it to a
+ * participant would mean 400 trade rows per round, and it is not one
+ * participant's decision — it is the flow the venue nets against everyone.
+ */
+function applyPassiveFlow(w: World, rng: RNG): void {
+  const flow = rng.normal(0, PASSIVE_FLOW_SD);
+  if (Math.abs(flow) < 1e-4) return;
+  for (const id of w.order) {
+    const a = w.artists.get(id)!;
+    if (!a.active) continue;
+    a.q += flow * a.b;
+    w.dirty.add(id);
   }
 }
 

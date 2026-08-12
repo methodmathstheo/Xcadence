@@ -54,6 +54,9 @@ model Artist {
   name      String
   genre     String
   tier      String // superstar | established | emerging | dormant
+  /// Tier at listing. Survival curves must segment on where an artist started,
+  /// not where it ended — segmenting on current tier conditions on the outcome.
+  debutTier String @default("emerging")
   debutMs   Float
   active    Boolean @default(true)
   exitMs    Float?

@@ -65,6 +65,7 @@ export function spawnArtists(w: World, rng: RNG, tMs: number): void {
       name: chosen[i],
       genre: r.pick(GENRES),
       tier: classifyTier(listeners),
+      debutTier: classifyTier(listeners),
       debutMs: tMs,
       active: true,
       exitMs: null,

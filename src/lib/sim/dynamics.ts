@@ -20,6 +20,8 @@ export interface ArtistState {
   name: string;
   genre: string;
   tier: Tier;
+  /** Tier at listing; never changes. */
+  debutTier: Tier;
   debutMs: number;
   active: boolean;
   exitMs: number | null;
@@ -212,6 +214,23 @@ export function monthBoundary(a: ArtistState, rng: RNG, tMs: number): SimEvent[]
   a.dirty = true;
 
   return events;
+}
+
+/**
+ * Industry-wide monthly shock, applied to every listed artist at once.
+ *
+ * Without a common factor the artists in this universe are statistically
+ * independent, every pairwise correlation sits at zero, and the
+ * diversification tool shows portfolio variance falling all the way to nothing
+ * — which is not what diversification does and not what a streaming market
+ * looks like. Playlist economics, payout rates and seasonal listening move
+ * everyone together.
+ */
+export const MARKET_SHOCK_SD = 0.06;
+
+export function applyMarketShock(a: ArtistState, shock: number): void {
+  if (!a.active) return;
+  a.listeners = clampListeners(a.listeners * Math.exp(shock));
 }
 
 export function clampListeners(x: number): number {

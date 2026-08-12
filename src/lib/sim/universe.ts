@@ -3,6 +3,8 @@ import { RNG } from "@/lib/rng";
 import { generateNames, GENRES } from "@/lib/sim/names";
 import {
   advanceDays,
+  applyMarketShock,
+  MARKET_SHOCK_SD,
   monthBoundary,
   monthlyRoyalty,
   targetListeners,
@@ -88,6 +90,7 @@ export async function createRun(seed: number): Promise<number> {
       name: names[i],
       genre: r.pick(GENRES),
       tier: classifyTier(listeners),
+      debutTier: classifyTier(listeners),
       debutMs,
       active: true,
       exitMs: null,
@@ -123,12 +126,16 @@ export async function createRun(seed: number): Promise<number> {
     const mk = startMonth + m;
     const tMs = monthKeyToMs(mk);
     const live: { i: number; listeners: number }[] = [];
+    // Same common factor the live engine applies, so backfilled history has
+    // the same cross-sectional correlation structure as forward-generated data.
+    const marketShock = rng.fork("hist-market", mk).normal(0, MARKET_SHOCK_SD);
 
     for (let i = 0; i < states.length; i++) {
       const a = states[i];
       if (!a.active) continue;
       if (a.debutMs > tMs) continue; // not yet releasing
       const r = rng.fork("hist", i, mk);
+      applyMarketShock(a, marketShock);
       advanceDays(a, r, 30);
       for (const e of monthBoundary(a, r, tMs)) histEvents.push({ ...e, tMs });
       live.push({ i, listeners: a.listeners });
@@ -194,6 +201,7 @@ export async function createRun(seed: number): Promise<number> {
       name: a.name,
       genre: a.genre,
       tier: a.tier,
+      debutTier: a.debutTier,
       debutMs: a.debutMs,
       active: a.active,
       exitMs: a.exitMs,

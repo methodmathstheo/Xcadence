@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db";
 import { RNG } from "@/lib/rng";
 import {
   advanceDays,
+  applyMarketShock,
+  MARKET_SHOCK_SD,
   monthBoundary,
   monthlyRoyalty,
   type ArtistState,
@@ -68,6 +70,7 @@ class Engine {
         name: a.name,
         genre: a.genre,
         tier: a.tier as Tier,
+        debutTier: a.debutTier as Tier,
         debutMs: a.debutMs,
         active: a.active,
         exitMs: a.exitMs,
@@ -298,10 +301,14 @@ class Engine {
     if (mk <= w.lastMonthKey) return;
     const r = w.rng.fork("month", mk);
 
+    // One draw for the whole market this month, before anything idiosyncratic.
+    const marketShock = r.fork("market").normal(0, MARKET_SHOCK_SD);
+
     const live: { id: number; listeners: number }[] = [];
     for (const id of w.order) {
       const a = w.artists.get(id)!;
       if (!a.active || a.debutMs > tMs) continue;
+      applyMarketShock(a, marketShock);
       for (const e of monthBoundary(a, r.fork(id), tMs)) pushEvent(w, e);
       w.dirty.add(id);
       live.push({ id, listeners: a.listeners });
@@ -319,6 +326,17 @@ class Engine {
         rank: idx + 1,
       });
     });
+
+    if (Math.abs(marketShock) > MARKET_SHOCK_SD * 1.8) {
+      pushEvent(w, {
+        artistId: null,
+        kind: marketShock > 0 ? "market" : "market",
+        magnitude: Math.exp(marketShock) - 1,
+        headline: `Streaming market ${marketShock > 0 ? "expands" : "contracts"} ${(
+          (Math.exp(marketShock) - 1) * 100
+        ).toFixed(1)}% this month`,
+      });
+    }
 
     accrueRoyalties(w, mk, tMs);
     refreshOfferings(w, r.fork("offer"), tMs);
@@ -491,6 +509,7 @@ class Engine {
         name: a.name,
         genre: a.genre,
         tier: a.tier,
+        debutTier: a.debutTier,
         debutMs: a.debutMs,
         active: true,
         trueQuality: a.trueQuality,

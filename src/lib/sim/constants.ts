@@ -79,6 +79,7 @@ export const EVENT_KINDS = [
   "payout",
   "capraise",
   "debut",
+  "market",
 ] as const;
 export type EventKind = (typeof EVENT_KINDS)[number];
 
@@ -93,4 +94,5 @@ export const EVENT_LABEL: Record<string, string> = {
   payout: "PAYOUT",
   capraise: "CAP RAISE",
   debut: "DEBUT",
+  market: "MARKET",
 };
