@@ -268,6 +268,7 @@ export async function createRun(seed: number): Promise<number> {
   await prisma.bot.createMany({
     data: Array.from({ length: BOT_COUNT }, (_, i) => {
       const s = BOT_STRATEGIES[i % BOT_STRATEGIES.length];
+      const startCash = botRng.uniform(6_000_000, 55_000_000);
       return {
         runId: run.id,
         name: `${BOT_PREFIX[i % BOT_PREFIX.length]} ${botRng.pick(BOT_SUFFIX)}`,
@@ -276,7 +277,8 @@ export async function createRun(seed: number): Promise<number> {
         // not 32 retail accounts. At ~1M each they collectively could not shift
         // 400 markets whose LMSR depth is 0.4-3M credits apiece, and quotes
         // drifted steadily further from fundamentals instead of converging.
-        cash: botRng.uniform(6_000_000, 55_000_000),
+        cash: startCash,
+        startCash,
         aggression: botRng.uniform(0.35, 1.4),
         horizon: botRng.int(3, 40),
       };

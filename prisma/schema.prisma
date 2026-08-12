@@ -133,6 +133,8 @@ model Bot {
   name     String
   strategy String // momentum | meanreversion | fundamental | noise
   cash     Float
+  /// Capital at listing, kept so the inspector can measure P&L by strategy.
+  startCash Float @default(0)
   aggression Float
   horizon  Int
   positions BotPosition[]
