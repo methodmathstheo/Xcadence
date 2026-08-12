@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Logo } from "@/components/Logo";
 
 const LINKS: [string, string][] = [
   ["/", "Rankings"],
@@ -18,8 +19,8 @@ export function Nav() {
   const path = usePathname();
   return (
     <nav className="flex items-center gap-0 border-b border-line bg-ink px-4">
-      <Link href="/" className="mr-6 flex items-baseline gap-2 py-2">
-        <span className="text-sm font-semibold tracking-[0.2em] text-accent">CADENCE</span>
+      <Link href="/" className="mr-6 flex items-center gap-2.5 py-2">
+        <Logo size={15} />
         <span className="label hidden sm:inline">Royalty Exchange</span>
       </Link>
       {LINKS.map(([href, label]) => {

@@ -15,7 +15,7 @@
  * burst.
  */
 
-const UA = "Cadence/0.1 ( royalty-exchange-simulation; local use )";
+const UA = "xcadence/0.1 ( royalty-exchange-simulation; local use )";
 const MB = "https://musicbrainz.org/ws/2";
 const WIKI = "https://en.wikipedia.org/api/rest_v1";
 const CAA = "https://coverartarchive.org";

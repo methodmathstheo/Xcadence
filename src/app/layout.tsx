@@ -21,8 +21,8 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Cadence — royalty exchange",
-  description: "A live simulated exchange in emerging-artist royalty shares.",
+  title: "xcadence — royalty exchange",
+  description: "A live simulated exchange in artist royalty shares.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
