@@ -1,26 +1,93 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --color-ink: #07080a;
+  --color-panel: #0d0f13;
+  --color-panel-2: #12151b;
+  --color-line: #1b1f27;
+  --color-line-2: #262b35;
+  --color-fg: #d8dce4;
+  --color-fg-dim: #98a1b0;
+  --color-fg-mute: #67707e;
+  --color-up: #3ddc97;
+  --color-down: #ff5d5d;
+  --color-accent: #f0b429;
+  --color-cyan: #4cc4f0;
+  --color-violet: #a78bfa;
+
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  background: var(--color-ink);
+  color: var(--color-fg);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Every number in this application is monospaced and tabular. Columns of
+   figures that jitter as digits change are unreadable at one update a second. */
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+.label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--color-fg-mute);
+}
+
+.panel {
+  background: var(--color-panel);
+  border: 1px solid var(--color-line);
+}
+
+/* Flash on change. Applied for one tick, then removed by the renderer. */
+@keyframes flash-up {
+  0% { background-color: color-mix(in srgb, var(--color-up) 34%, transparent); }
+  100% { background-color: transparent; }
+}
+@keyframes flash-down {
+  0% { background-color: color-mix(in srgb, var(--color-down) 34%, transparent); }
+  100% { background-color: transparent; }
+}
+.flash-up { animation: flash-up 620ms ease-out; }
+.flash-down { animation: flash-down 620ms ease-out; }
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+.pulse-dot { animation: pulse-dot 1.6s ease-in-out infinite; }
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.marquee { animation: marquee 90s linear infinite; }
+.marquee:hover { animation-play-state: paused; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--color-ink); }
+::-webkit-scrollbar-thumb {
+  background: var(--color-line-2);
+  border: 2px solid var(--color-ink);
+  border-radius: 6px;
+}
+::-webkit-scrollbar-thumb:hover { background: #333a47; }
+
+input[type="range"] { accent-color: var(--color-accent); }
+
+@media (prefers-reduced-motion: reduce) {
+  .flash-up, .flash-down, .pulse-dot, .marquee { animation: none !important; }
 }
