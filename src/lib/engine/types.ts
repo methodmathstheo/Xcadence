@@ -1,5 +1,6 @@
 import type { RNG } from "@/lib/rng";
 import type { ArtistState } from "@/lib/sim/dynamics";
+import type { OfferingState, OfferingPositionState } from "@/lib/engine/offerings";
 
 export interface BotState {
   id: number;
@@ -56,6 +57,10 @@ export interface PendingWrites {
   }[];
   /** Debuts, inserted on the next flush so they arrive with real database ids. */
   newArtists: Omit<ArtistState, "id">[];
+  /** New primary-market listings, same deferred-id treatment as debuts. */
+  newOfferings: Omit<OfferingState, "id">[];
+  offeringUpdates: OfferingState[];
+  offeringPositionUpdates: OfferingPositionState[];
 }
 
 export interface World {
@@ -85,6 +90,9 @@ export interface World {
     sessionStartEquity: number;
   };
   positions: Map<number, PositionState>;
+
+  offerings: OfferingState[];
+  offeringPositions: OfferingPositionState[];
 
   /** Recent price samples per artist for the live charts (not durable). */
   priceRing: Map<number, { t: number; p: number }[]>;

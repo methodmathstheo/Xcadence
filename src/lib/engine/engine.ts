@@ -17,6 +17,7 @@ import { runOrderFlow } from "@/lib/engine/bots";
 import { spawnArtists } from "@/lib/engine/entry";
 import { accrueRoyalties, refreshOfferings } from "@/lib/engine/offerings";
 import { pushEvent, pushTape } from "@/lib/engine/tape";
+import type { OfferingState } from "@/lib/engine/offerings";
 import type { PendingWrites, StreamFrame, World } from "@/lib/engine/types";
 
 /** Wall-clock period of one tick. Simulated time advances by this × speed. */
@@ -56,12 +57,18 @@ class Engine {
 
   private async load(): Promise<World> {
     const run = await getOrCreateRun();
-    const [artists, bots, account, positions] = await Promise.all([
-      prisma.artist.findMany({ where: { runId: run.id } }),
-      prisma.bot.findMany({ where: { runId: run.id }, include: { positions: true } }),
-      prisma.account.findUniqueOrThrow({ where: { runId: run.id } }),
-      prisma.position.findMany({ where: { runId: run.id } }),
-    ]);
+    const [artists, bots, account, positions, offerings, offeringPositions] =
+      await Promise.all([
+        prisma.artist.findMany({ where: { runId: run.id } }),
+        prisma.bot.findMany({ where: { runId: run.id }, include: { positions: true } }),
+        prisma.account.findUniqueOrThrow({ where: { runId: run.id } }),
+        prisma.position.findMany({ where: { runId: run.id } }),
+        prisma.offering.findMany({ where: { runId: run.id } }),
+        prisma.offeringPosition.findMany({
+          where: { runId: run.id },
+          include: { offering: { select: { artistId: true, termMonths: true } } },
+        }),
+      ]);
 
     const map = new Map<number, ArtistState>();
     for (const a of artists) {
@@ -159,6 +166,30 @@ class Engine {
           { qty: p.qty, costBasis: p.costBasis, realised: p.realised },
         ]),
       ),
+      offerings: offerings.map((o) => ({
+        id: o.id,
+        artistId: o.artistId,
+        pctRoyalty: o.pctRoyalty,
+        askCredits: o.askCredits,
+        termMonths: o.termMonths,
+        openMs: o.openMs,
+        expiresMs: o.expiresMs,
+        status: o.status,
+        filled: o.filled,
+      })),
+      offeringPositions: offeringPositions.map((p) => ({
+        id: p.id,
+        offeringId: p.offeringId,
+        artistId: p.offering.artistId,
+        credits: p.credits,
+        sharePct: p.sharePct,
+        startMonthKey: p.startMonthKey,
+        endMonthKey: p.endMonthKey,
+        royalties: p.royalties,
+        monthsPaid: p.monthsPaid,
+        active: p.active,
+      })),
+
       priceRing: new Map(),
       tape: [],
       dirty: new Set(),
@@ -470,9 +501,23 @@ class Engine {
           });
         if (pending.royaltyPayments.length)
           await tx.royaltyPayment.createMany({ data: pending.royaltyPayments });
+
+        for (const o of dedupeById(pending.offeringUpdates)) {
+          await tx.offering.update({
+            where: { id: o.id },
+            data: { status: o.status, filled: o.filled },
+          });
+        }
+        for (const p of dedupeById(pending.offeringPositionUpdates)) {
+          await tx.offeringPosition.update({
+            where: { id: p.id },
+            data: { royalties: p.royalties, monthsPaid: p.monthsPaid, active: p.active },
+          });
+        }
       });
 
       if (pending.newArtists.length) await this.admitEntrants(w, pending.newArtists);
+      if (pending.newOfferings.length) await this.listOfferings(w, pending.newOfferings);
       if (pending.months.length) await this.prune(w);
     } catch (err) {
       console.error("[engine] flush failed", err);
@@ -557,6 +602,20 @@ class Engine {
         magnitude: 0,
       });
     }
+  }
+
+  /** Same deferred-id treatment as debuts: an offering is not investable
+   * until it has the database id a position will reference. */
+  private async listOfferings(w: World, drafts: Omit<OfferingState, "id">[]) {
+    for (const d of drafts) {
+      const row = await prisma.offering.create({ data: { ...d, runId: w.runId } });
+      w.offerings.push({ ...d, id: row.id });
+    }
+    // Closed and expired listings stay in the database for the cohort view;
+    // the world only carries what can still change.
+    w.offerings = w.offerings.filter(
+      (o) => o.status === "OPEN" || w.offeringPositions.some((p) => p.offeringId === o.id),
+    );
   }
 
   /** Long fast-forward runs are unbounded in rows; keep the tables finite. */
@@ -759,6 +818,16 @@ function mergePending(into: PendingWrites, failed: PendingWrites) {
   into.equityPoints.unshift(...failed.equityPoints);
   into.royaltyPayments.unshift(...failed.royaltyPayments);
   into.newArtists.unshift(...failed.newArtists);
+  into.newOfferings.unshift(...failed.newOfferings);
+  into.offeringUpdates.unshift(...failed.offeringUpdates);
+  into.offeringPositionUpdates.unshift(...failed.offeringPositionUpdates);
+}
+
+/** Last write wins: a row touched twice in one batch only needs one update. */
+function dedupeById<T extends { id: number }>(rows: T[]): T[] {
+  const m = new Map<number, T>();
+  for (const r of rows) m.set(r.id, r);
+  return [...m.values()];
 }
 
 function emptyPending(): PendingWrites {
@@ -771,6 +840,9 @@ function emptyPending(): PendingWrites {
     equityPoints: [],
     royaltyPayments: [],
     newArtists: [],
+    newOfferings: [],
+    offeringUpdates: [],
+    offeringPositionUpdates: [],
   };
 }
 
