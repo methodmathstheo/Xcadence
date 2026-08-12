@@ -7,6 +7,8 @@ import {
 import { axisProps, CHART, tooltipStyle } from "@/components/charts/theme";
 import { ArtistLink, Empty, Panel, Stat, TierBadge } from "@/components/ui";
 import { useMarket } from "@/lib/client/useMarket";
+import { Avatar } from "@/components/Avatar";
+import { useAvatars } from "@/lib/client/useAvatars";
 import {
   fmtCompact, fmtCredits, fmtListeners, fmtPct, fmtSignedPct, toneClass,
 } from "@/lib/format";
@@ -39,6 +41,7 @@ interface Payload {
 
 export default function OfferingsPage() {
   const m = useMarket();
+  const { avatars } = useAvatars();
   const [d, setD] = useState<Payload | null>(null);
   const [amount, setAmount] = useState<Record<number, string>>({});
   const [msg, setMsg] = useState<string | null>(null);
@@ -114,8 +117,11 @@ export default function OfferingsPage() {
               <tbody>
                 {d.open.map((o) => (
                   <tr key={o.id} className="border-b border-line/50 hover:bg-panel-2">
-                    <td className="max-w-0 truncate px-2 py-1.5">
-                      <ArtistLink id={o.artistId} name={o.artistName} />
+                    <td className="max-w-0 px-2 py-1.5">
+                      <span className="flex min-w-0 items-center gap-2">
+                        <Avatar name={o.artistName} src={avatars[o.artistId]} size={22} />
+                        <ArtistLink id={o.artistId} name={o.artistName} className="truncate" />
+                      </span>
                     </td>
                     <td className="px-2 py-1.5"><TierBadge tier={o.tier} /></td>
                     <td className="num px-2 py-1.5 text-right">{fmtListeners(o.listeners)}</td>
@@ -179,8 +185,11 @@ export default function OfferingsPage() {
               <tbody>
                 {d.positions.map((p) => (
                   <tr key={p.id} className="border-b border-line/50">
-                    <td className="max-w-0 truncate px-2 py-1.5">
-                      <ArtistLink id={p.artistId} name={p.artistName} />
+                    <td className="max-w-0 px-2 py-1.5">
+                      <span className="flex min-w-0 items-center gap-2">
+                        <Avatar name={p.artistName} src={avatars[p.artistId]} size={22} />
+                        <ArtistLink id={p.artistId} name={p.artistName} className="truncate" />
+                      </span>
                     </td>
                     <td className="num px-2 py-1.5 text-right">{fmtCompact(p.credits)}</td>
                     <td className="num px-2 py-1.5 text-right">{fmtPct(p.sharePct, 3)}</td>

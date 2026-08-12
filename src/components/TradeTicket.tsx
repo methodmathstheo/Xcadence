@@ -4,7 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMarket } from "@/lib/client/useMarket";
 import { quoteTrade } from "@/lib/sim/lmsr";
 import { fmtCompact, fmtCredits, fmtListeners, fmtPct, fmtSignedPct, toneClass } from "@/lib/format";
-import { TierBadge } from "@/components/ui";
+import { ArtistLink, TierBadge } from "@/components/ui";
+import { Avatar } from "@/components/Avatar";
+import { useAvatars } from "@/lib/client/useAvatars";
 
 interface Ctx {
   artist: {
@@ -35,6 +37,7 @@ export function TradeTicket({
   onTraded: () => void;
 }) {
   const m = useMarket();
+  const { avatars } = useAvatars();
   const [ctx, setCtx] = useState<Ctx | null>(null);
   const [side, setSide] = useState<"BUY" | "SELL">("BUY");
   const [size, setSize] = useState("100");
@@ -105,7 +108,8 @@ export function TradeTicket({
     <div className="flex flex-col gap-3 p-3">
       <div className="flex items-baseline justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span className="text-sm text-fg">{ctx.artist.name}</span>
+          <Avatar name={ctx.artist.name} src={avatars[ctx.artist.id]} size={24} />
+          <ArtistLink id={ctx.artist.id} name={ctx.artist.name} className="text-sm text-fg" />
           <TierBadge tier={ctx.artist.tier} />
         </div>
         <span className="num text-sm text-fg">{fmtCredits(live)}</span>

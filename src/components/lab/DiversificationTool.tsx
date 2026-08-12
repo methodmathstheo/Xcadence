@@ -4,7 +4,7 @@ import {
   CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import { axisProps, CHART, tooltipStyle } from "@/components/charts/theme";
-import { Panel, Stat } from "@/components/ui";
+import { ArtistLink, Panel, Stat } from "@/components/ui";
 import { fmtPct } from "@/lib/format";
 import type { DiversificationResult } from "@/lib/quant/cohort";
 
@@ -63,8 +63,12 @@ export function DiversificationTool({
             ))}
             {data.matrix.map((row, i) => (
               <div key={`r${i}`} className="contents">
-                <div className="num truncate pr-1 text-[11px] text-fg-mute" title={data.labels[i].name}>
-                  {data.labels[i].name.slice(0, 14)}
+                <div className="num truncate pr-1 text-[11px]" title={data.labels[i].name}>
+                  <ArtistLink
+                    id={data.labels[i].artistId}
+                    name={data.labels[i].name.slice(0, 14)}
+                    className="text-fg-mute"
+                  />
                 </div>
                 {row.map((c, j) => (
                   <div

@@ -9,6 +9,8 @@ import {
 import { axisProps, CHART, tooltipStyle } from "@/components/charts/theme";
 import { useMarket } from "@/lib/client/useMarket";
 import { LiveCell } from "@/components/LiveCell";
+import { Avatar } from "@/components/Avatar";
+import { useAvatars } from "@/lib/client/useAvatars";
 import { ArtistLink, Empty, Panel, Stat, TierBadge } from "@/components/ui";
 import {
   fmtCompact, fmtCredits, fmtPct, fmtSigned, fmtSignedPct, toneClass,
@@ -37,6 +39,7 @@ interface Payload {
 
 export default function PortfolioPage() {
   const m = useMarket();
+  const { avatars } = useAvatars();
   const [d, setD] = useState<Payload | null>(null);
 
   const load = useCallback(() => {
@@ -295,9 +298,12 @@ export default function PortfolioPage() {
                   const mv = h.qty * price;
                   return (
                     <tr key={h.artistId} className="border-b border-line/50 hover:bg-panel-2">
-                      <td className="max-w-0 truncate px-3 py-1.5">
-                        <ArtistLink id={h.artistId} name={h.name} />
-                        {!h.active && <span className="label ml-2 text-down">delisted</span>}
+                      <td className="max-w-0 px-3 py-1.5">
+                        <span className="flex min-w-0 items-center gap-2">
+                          <Avatar name={h.name} src={avatars[h.artistId]} size={22} />
+                          <ArtistLink id={h.artistId} name={h.name} className="truncate" />
+                          {!h.active && <span className="label shrink-0 text-down">delisted</span>}
+                        </span>
                       </td>
                       <td className="px-3 py-1.5"><TierBadge tier={h.tier} /></td>
                       <td className={`num px-3 py-1.5 text-right ${h.qty < 0 ? "text-down" : ""}`}>
@@ -384,8 +390,11 @@ export default function PortfolioPage() {
                   <tbody>
                     {a.suggestions.map((s) => (
                       <tr key={s.artistId} className="border-b border-line/50 hover:bg-panel-2">
-                        <td className="max-w-0 truncate px-3 py-1.5">
-                          <ArtistLink id={s.artistId} name={s.name} />
+                        <td className="max-w-0 px-3 py-1.5">
+                          <span className="flex min-w-0 items-center gap-2">
+                            <Avatar name={s.name} src={avatars[s.artistId]} size={22} />
+                            <ArtistLink id={s.artistId} name={s.name} className="truncate" />
+                          </span>
                         </td>
                         <td className="px-3 py-1.5"><TierBadge tier={s.tier} /></td>
                         <td className="num px-3 py-1.5 text-right">{fmtCredits(s.price)}</td>
@@ -422,6 +431,7 @@ export default function PortfolioPage() {
               <ul className="divide-y divide-line/60">
                 {a.trims.map((t) => (
                   <li key={t.artistId} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-3 py-2 text-xs">
+                    <Avatar name={t.name} src={avatars[t.artistId]} size={20} />
                     <ArtistLink id={t.artistId} name={t.name} className="text-fg-dim" />
                     <span className="text-fg-mute">
                       {Math.abs(t.weight) > 0.2

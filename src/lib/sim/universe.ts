@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { RNG } from "@/lib/rng";
-import { ROSTER, ROSTER_GENRES } from "@/lib/sim/names";
+import { genreFor, ROSTER } from "@/lib/sim/names";
 import {
   advanceDays,
   applyMarketShock,
@@ -93,7 +93,7 @@ export async function createRun(seed: number): Promise<number> {
     states.push({
       id: i, // temporary; replaced with the DB id after insert
       name: ROSTER[i],
-      genre: r.pick(ROSTER_GENRES),
+      genre: genreFor(ROSTER[i]),
       tier: classifyTier(listeners),
       debutTier: classifyTier(listeners),
       debutMs,

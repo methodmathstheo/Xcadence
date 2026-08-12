@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { engine } from "@/lib/engine/engine";
 import { SimulatedDataProvider } from "@/lib/data/simulated";
 import { dcf, estimateInputs } from "@/lib/quant/dcf";
+import { categoryOf, genreFor } from "@/lib/sim/names";
 import type { ArtistSummary } from "@/lib/data/provider";
 
 export const runtime = "nodejs";
@@ -27,7 +28,8 @@ export async function GET(req: Request) {
     rows.push({
       id: a.id,
       name: a.name,
-      genre: a.genre,
+      genre: genreFor(a.name),
+      category: categoryOf(a.name),
       tier: a.tier,
       active: a.active,
       debutMs: a.debutMs,

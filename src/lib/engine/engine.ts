@@ -208,10 +208,11 @@ class Engine {
   }
 
   /** Boot: load state and start the wall clock. Idempotent. */
-  async boot() {
-    await this.ensureLoaded();
+  async boot(): Promise<World> {
+    const w = await this.ensureLoaded();
     this.startTimer();
     this.installShutdownHooks();
+    return w;
   }
 
   private hooksInstalled = false;

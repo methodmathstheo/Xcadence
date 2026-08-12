@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useMarket } from "@/lib/client/useMarket";
+import { useAvatars } from "@/lib/client/useAvatars";
+import { Avatar } from "@/components/Avatar";
 import { fmtCredits, fmtSignedPct } from "@/lib/format";
 
 type Lite = { id: number; name: string; tier: string; price: number };
@@ -13,6 +15,7 @@ type Lite = { id: number; name: string; tier: string; price: number };
  */
 export function TickerBar() {
   const m = useMarket();
+  const { avatars } = useAvatars();
   const [names, setNames] = useState<Map<number, Lite>>(new Map());
 
   useEffect(() => {
@@ -57,8 +60,9 @@ export function TickerBar() {
               <Link
                 key={`${it.id}-${i}`}
                 href={`/artist/${it.id}`}
-                className="flex shrink-0 items-baseline gap-2 hover:opacity-80"
+                className="flex shrink-0 items-center gap-2 hover:opacity-80"
               >
+                <Avatar name={it.name} src={avatars[it.id]} size={16} />
                 <span className="text-fg-dim">{it.name}</span>
                 <span className="num text-fg">{fmtCredits(it.price)}</span>
                 <span className={`num ${it.chg > 0 ? "text-up" : it.chg < 0 ? "text-down" : "text-fg-mute"}`}>

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { monthKey } from "@/lib/sim/time";
 import { dcf, estimateInputs } from "@/lib/quant/dcf";
+import { categoryOf, genreFor } from "@/lib/sim/names";
 import type {
   ArtistHistoryPoint,
   ArtistSummary,
@@ -74,7 +75,8 @@ export function toSummary(a: ArtistRow, rank: number): ArtistSummary {
   return {
     id: a.id,
     name: a.name,
-    genre: a.genre,
+    genre: genreFor(a.name),
+    category: categoryOf(a.name),
     tier: a.tier,
     active: a.active,
     debutMs: a.debutMs,

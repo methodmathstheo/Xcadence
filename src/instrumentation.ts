@@ -10,5 +10,11 @@
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
   const { engine } = await import("@/lib/engine/engine");
-  await engine.boot();
+  const world = await engine.boot();
+
+  // Fill artist photos and catalogues in the background. Deliberately not
+  // awaited: it takes about nine minutes at MusicBrainz's rate limit and
+  // nothing should wait on it.
+  const { warmProfiles } = await import("@/lib/music/warmer");
+  void warmProfiles(world.runId).catch(() => {});
 }

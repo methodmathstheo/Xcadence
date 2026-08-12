@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { engine } from "@/lib/engine/engine";
+import { categoryOf, genreFor } from "@/lib/sim/names";
 import { buildBook, buildCandles } from "@/lib/sim/orderbook";
 import { dcf, estimateInputs } from "@/lib/quant/dcf";
 import { maxBuyForCredits } from "@/lib/sim/lmsr";
@@ -60,7 +61,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     market: {
       id: a.id,
       name: a.name,
-      genre: a.genre,
+      genre: genreFor(a.name),
+      category: categoryOf(a.name),
       tier: a.tier,
       active: a.active,
       price: a.price,

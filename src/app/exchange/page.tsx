@@ -136,7 +136,12 @@ function Terminal() {
               <Avatar name={mk.name} src={mk.avatar ?? avatars[mk.id]} size={34} />
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-base font-medium">{mk.name}</span>
+                  <Link
+                    href={`/artist/${mk.id}`}
+                    className="text-base font-medium hover:text-accent"
+                  >
+                    {mk.name}
+                  </Link>
                   <span className="label">/ CR</span>
                 </div>
                 <div className="label">{mk.genre} · {mk.tier}</div>

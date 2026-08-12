@@ -17,8 +17,7 @@ type Col = {
   key: SortKey; label: string; align: "left" | "right"; w?: string; detail?: boolean;
 };
 
-/** `detail` columns are hidden until the reader asks for them. Nine columns of
- *  live figures is a lot to parse; six carries the same story. */
+/** `detail` columns are hidden until the reader asks for them. */
 const COLUMNS: Col[] = [
   { key: "rank", label: "#", align: "right", w: "w-12" },
   { key: "name", label: "Artist", align: "left" },
@@ -32,10 +31,26 @@ const COLUMNS: Col[] = [
 ];
 
 /**
- * The universe, sortable on every column, updating in place. Rows are keyed by
- * artist id rather than position, so a re-sort moves the row without wiping the
- * flash state that tells you a value just changed.
+ * Named rankings, each a (column, direction) pair.
+ *
+ * The numbered rank on the left is the row's position in whatever ranking is
+ * currently applied, not a fixed popularity order — a rank column that keeps
+ * saying "4" while you sort by growth is telling you about a different list
+ * than the one you are reading.
  */
+const PRESETS: { id: string; label: string; key: SortKey; dir: 1 | -1 }[] = [
+  { id: "popular", label: "Most popular", key: "listeners", dir: 1 },
+  { id: "growth", label: "Biggest growth", key: "growth30", dir: 1 },
+  { id: "priceDesc", label: "Price high → low", key: "price", dir: 1 },
+  { id: "priceAsc", label: "Price low → high", key: "price", dir: -1 },
+];
+
+const CHARTS: { id: "all" | "rap" | "rnb"; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "rap", label: "Rap" },
+  { id: "rnb", label: "R&B" },
+];
+
 export function RankingsTable({
   rows,
   defaultLimit = 120,
@@ -45,9 +60,11 @@ export function RankingsTable({
 }) {
   const m = useMarket();
   const { avatars } = useAvatars();
-  const [sort, setSort] = useState<SortKey>("rank");
+  const [preset, setPreset] = useState("popular");
+  const [sort, setSort] = useState<SortKey>("listeners");
   const [dir, setDir] = useState<1 | -1>(1);
   const [query, setQuery] = useState("");
+  const [chart, setChart] = useState<"all" | "rap" | "rnb">("all");
   const [tier, setTier] = useState<string>("all");
   const [limit, setLimit] = useState(defaultLimit);
   const [detailed, setDetailed] = useState(false);
@@ -62,8 +79,6 @@ export function RankingsTable({
         listeners,
         price: quote.price,
         chg: quote.prev > 0 ? quote.price / quote.prev - 1 : 0,
-        // 30/90d growth is anchored to the trailing marks the engine keeps, so
-        // rebase it off the live listener count rather than the load-time one.
         growth30: a.listeners > 0 ? (listeners / a.listeners) * (1 + a.growth30) - 1 : 0,
         growth90: a.listeners > 0 ? (listeners / a.listeners) * (1 + a.growth90) - 1 : 0,
       };
@@ -71,6 +86,7 @@ export function RankingsTable({
 
     const filtered = live.filter(
       (a) =>
+        (chart === "all" || a.category === chart) &&
         (tier === "all" || a.tier === tier) &&
         (!q || a.name.toLowerCase().includes(q) || a.genre.toLowerCase().includes(q)),
     );
@@ -83,29 +99,61 @@ export function RankingsTable({
     });
     return filtered;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, sort, dir, query, tier, m.version]);
+  }, [rows, sort, dir, query, tier, chart, m.version]);
 
-  const cols = useMemo(
-    () => COLUMNS.filter((c) => detailed || !c.detail),
-    [detailed],
-  );
+  const cols = useMemo(() => COLUMNS.filter((c) => detailed || !c.detail), [detailed]);
+
+  const applyPreset = (p: (typeof PRESETS)[number]) => {
+    setPreset(p.id);
+    setSort(p.key);
+    setDir(p.dir);
+  };
 
   const click = (key: SortKey) => {
+    setPreset("");
     if (key === sort) setDir((d) => (d === 1 ? -1 : 1));
     else {
       setSort(key);
-      setDir(key === "rank" || key === "name" ? -1 : 1);
+      setDir(key === "name" ? -1 : 1);
     }
   };
 
   return (
     <div className="flex min-h-0 flex-col">
-      <div className="flex flex-wrap items-center gap-2 border-b border-line px-3 py-1.5">
+      <div className="flex flex-wrap items-center gap-2 border-b border-line px-3 py-2">
+        <div className="flex gap-px bg-line">
+          {PRESETS.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => applyPreset(p)}
+              className={`px-2.5 py-1.5 text-[11px] ${
+                preset === p.id ? "bg-panel text-accent" : "bg-panel-2 text-fg-mute hover:text-fg"
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex gap-px bg-line">
+          {CHARTS.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => setChart(c.id)}
+              className={`px-3 py-1.5 text-[11px] ${
+                chart === c.id ? "bg-panel text-cyan" : "bg-panel-2 text-fg-mute hover:text-fg"
+              }`}
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
+
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Filter artist or genre…"
-          className="w-56 border border-line-2 bg-panel-2 px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
+          className="w-48 border border-line-2 bg-panel-2 px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
         />
         <select
           value={tier}
@@ -118,6 +166,7 @@ export function RankingsTable({
           <option value="emerging">Emerging</option>
           <option value="dormant">Dormant</option>
         </select>
+
         <button
           onClick={() => setDetailed((v) => !v)}
           className="label ml-auto border border-line-2 px-2 py-1.5 hover:border-accent hover:text-accent"
@@ -125,7 +174,7 @@ export function RankingsTable({
           {detailed ? "Fewer columns" : "More columns"}
         </button>
         <span className="label">
-          {view.length} listed · showing {Math.min(limit, view.length)}
+          {view.length} ranked · showing {Math.min(limit, view.length)}
         </span>
       </div>
 
@@ -136,24 +185,26 @@ export function RankingsTable({
               {cols.map((c) => (
                 <th
                   key={c.key}
-                  onClick={() => click(c.key)}
-                  className={`label cursor-pointer select-none px-3 py-2 font-normal hover:text-fg ${
-                    c.align === "right" ? "text-right" : "text-left"
-                  } ${c.w ?? ""} ${sort === c.key ? "text-accent" : ""}`}
+                  onClick={() => c.key !== "rank" && click(c.key)}
+                  className={`label select-none px-3 py-2 font-normal ${
+                    c.key === "rank" ? "" : "cursor-pointer hover:text-fg"
+                  } ${c.align === "right" ? "text-right" : "text-left"} ${c.w ?? ""} ${
+                    sort === c.key ? "text-accent" : ""
+                  }`}
                 >
                   {c.label}
-                  {sort === c.key ? (dir === 1 ? " ▾" : " ▴") : ""}
+                  {sort === c.key && c.key !== "rank" ? (dir === 1 ? " ▾" : " ▴") : ""}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {view.slice(0, limit).map((a) => (
+            {view.slice(0, limit).map((a, i) => (
               <tr key={a.id} className="border-b border-line/50 hover:bg-panel-2">
-                <td className="num px-3 py-1.5 text-right text-fg-mute">{a.rank}</td>
+                <td className="num px-3 py-1.5 text-right text-fg-mute">{i + 1}</td>
                 <td className="max-w-0 px-3 py-1.5">
                   <span className="flex min-w-0 items-center gap-2">
-                    <Avatar name={a.name} src={avatars[a.id]} size={24} />
+                    <Avatar name={a.name} src={avatars[a.id]} size={26} />
                     <span className="min-w-0 truncate">
                       <ArtistLink id={a.id} name={a.name} />
                       <span className="ml-2 text-fg-mute">{a.genre}</span>

@@ -10,6 +10,8 @@ export interface ArtistSummary {
   id: number;
   name: string;
   genre: string;
+  /** Which chart the artist trades on. */
+  category: "rap" | "rnb";
   tier: string;
   active: boolean;
   debutMs: number;

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { engine } from "@/lib/engine/engine";
+import { categoryOf, genreFor } from "@/lib/sim/names";
 import { fetchOpenProfile } from "@/lib/music/openmusic";
 import { fmtSimDate } from "@/lib/sim/time";
 
@@ -53,7 +54,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   );
 
   const about = {
-    genre: a.genre,
+    genre: genreFor(a.name),
+    category: categoryOf(a.name),
     tier: a.tier,
     debutMs: a.debutMs,
     debutLabel: fmtSimDate(a.debutMs),

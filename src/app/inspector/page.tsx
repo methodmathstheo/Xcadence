@@ -6,6 +6,8 @@ import {
 } from "recharts";
 import { axisProps, CHART, tooltipStyle } from "@/components/charts/theme";
 import { ArtistLink, Panel, Stat, TierBadge } from "@/components/ui";
+import { Avatar } from "@/components/Avatar";
+import { useAvatars } from "@/lib/client/useAvatars";
 import { fmtCompact, fmtCredits, fmtListeners, fmtPct, fmtSignedPct, toneClass } from "@/lib/format";
 import { fmtSimDate } from "@/lib/sim/time";
 
@@ -30,6 +32,7 @@ interface Payload {
 }
 
 export default function InspectorPage() {
+  const { avatars } = useAvatars();
   const [d, setD] = useState<Payload | null>(null);
 
   const load = useCallback(() => {
@@ -175,8 +178,11 @@ export default function InspectorPage() {
           <tbody>
             {d.artists.map((a) => (
               <tr key={a.id} className="border-b border-line/50 hover:bg-panel-2">
-                <td className="max-w-0 truncate px-2 py-1.5">
-                  <ArtistLink id={a.id} name={a.name} />
+                <td className="max-w-0 px-2 py-1.5">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <Avatar name={a.name} src={avatars[a.id]} size={20} />
+                    <ArtistLink id={a.id} name={a.name} className="truncate" />
+                  </span>
                 </td>
                 <td className="px-2 py-1.5"><TierBadge tier={a.tier} /></td>
                 <td className="num px-2 py-1.5 text-right">{fmtListeners(a.listeners)}</td>

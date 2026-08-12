@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useMarket } from "@/lib/client/useMarket";
+import { useAvatars } from "@/lib/client/useAvatars";
+import { Avatar } from "@/components/Avatar";
 import { EVENT_LABEL } from "@/lib/sim/constants";
 import { fmtCredits } from "@/lib/format";
 import { fmtSimDate } from "@/lib/sim/time";
@@ -23,6 +25,7 @@ const EVENT_TONE: Record<string, string> = {
 /** Recent trades and market events, newest first. */
 export function Tape({ limit = 40 }: { limit?: number }) {
   const m = useMarket();
+  const { avatars } = useAvatars();
   const rows = m.tape.slice(0, limit);
 
   if (rows.length === 0) return <Empty>No prints yet</Empty>;
@@ -41,8 +44,12 @@ export function Tape({ limit = 40 }: { limit?: number }) {
               </span>
               <span className="num shrink-0 text-fg-dim">{Math.round(e.qty ?? 0)}</span>
               {e.artistId ? (
-                <Link href={`/artist/${e.artistId}`} className="truncate hover:text-accent">
-                  {e.artistName}
+                <Link
+                  href={`/artist/${e.artistId}`}
+                  className="flex min-w-0 items-center gap-1.5 truncate hover:text-accent"
+                >
+                  <Avatar name={e.artistName} src={avatars[e.artistId]} size={16} />
+                  <span className="truncate">{e.artistName}</span>
                 </Link>
               ) : (
                 <span className="truncate">{e.artistName}</span>
@@ -58,8 +65,12 @@ export function Tape({ limit = 40 }: { limit?: number }) {
                 {EVENT_LABEL[e.eventKind ?? ""] ?? e.eventKind}
               </span>
               {e.artistId ? (
-                <Link href={`/artist/${e.artistId}`} className="truncate text-fg-dim hover:text-accent">
-                  {e.text}
+                <Link
+                  href={`/artist/${e.artistId}`}
+                  className="flex min-w-0 items-center gap-1.5 truncate text-fg-dim hover:text-accent"
+                >
+                  <Avatar name={e.artistName} src={avatars[e.artistId]} size={16} />
+                  <span className="truncate">{e.text}</span>
                 </Link>
               ) : (
                 <span className="truncate text-fg-dim">{e.text}</span>

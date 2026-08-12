@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { engine } from "@/lib/engine/engine";
+import { categoryOf, genreFor } from "@/lib/sim/names";
 import { SimulatedDataProvider } from "@/lib/data/simulated";
 import { dcf, discountSensitivity, estimateInputs } from "@/lib/quant/dcf";
 import { DEFAULT_DISCOUNT } from "@/lib/sim/constants";
@@ -65,7 +66,8 @@ export async function GET(
     artist: {
       id: a.id,
       name: a.name,
-      genre: a.genre,
+      genre: genreFor(a.name),
+      category: categoryOf(a.name),
       tier: a.tier,
       active: a.active,
       debutMs: a.debutMs,

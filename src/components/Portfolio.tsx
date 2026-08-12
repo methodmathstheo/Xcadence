@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useMarket } from "@/lib/client/useMarket";
+import { useAvatars } from "@/lib/client/useAvatars";
+import { Avatar } from "@/components/Avatar";
 import { SeriesChart } from "@/components/charts/SeriesChart";
 import { ArtistLink, Empty, Panel, Stat, TierBadge } from "@/components/ui";
 import { LiveCell } from "@/components/LiveCell";
@@ -42,6 +44,7 @@ export function PositionsStrip({
   onPick: (id: number) => void;
 }) {
   const m = useMarket();
+  const { avatars } = useAvatars();
   const holdings = data.holdings.map((h) => {
     const price = m.quote(h.artistId, h.price).price;
     const marketValue = h.qty * price;
@@ -81,8 +84,11 @@ export function PositionsStrip({
                 onClick={() => onPick(h.artistId)}
                 className="cursor-pointer border-b border-line/50 hover:bg-panel-2"
               >
-                <td className="max-w-0 truncate px-3 py-1.5">
-                  <ArtistLink id={h.artistId} name={h.name} />
+                <td className="max-w-0 px-3 py-1.5">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <Avatar name={h.name} src={avatars[h.artistId]} size={22} />
+                    <ArtistLink id={h.artistId} name={h.name} className="truncate" />
+                  </span>
                 </td>
                 <td className={`num px-3 py-1.5 text-right ${h.qty < 0 ? "text-down" : ""}`}>
                   {h.qty.toFixed(0)}
@@ -109,6 +115,7 @@ export function PositionsStrip({
 
 export function PortfolioPanels({ data, onPick }: { data: PortfolioData; onPick: (id: number) => void }) {
   const m = useMarket();
+  const { avatars } = useAvatars();
   const acc = data.account;
 
   // Mark holdings at the live quote rather than the value at fetch time.

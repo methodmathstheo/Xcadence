@@ -14,59 +14,118 @@ import { RNG } from "@/lib/rng";
  * output from a random number generator with a documented seed, not a claim
  * about a career.
  */
-export const ROSTER = [
-  // ---- rap
-  "Kendrick Lamar", "J. Cole", "Travis Scott", "Future", "Lil Wayne",
-  "Nicki Minaj", "Cardi B", "Megan Thee Stallion", "Tyler, The Creator",
-  "A$AP Rocky", "Lil Baby", "Gunna", "Playboi Carti", "Don Toliver",
-  "Jack Harlow", "Roddy Ricch", "Polo G", "Lil Durk", "Rod Wave", "Latto",
-  "GloRilla", "Ice Spice", "Sexyy Red", "Denzel Curry", "JID", "Vince Staples",
-  "Freddie Gibbs", "Pusha T", "Rick Ross", "2 Chainz", "Jeezy", "T.I.",
-  "Ludacris", "Nas", "JAY-Z", "Eminem", "Snoop Dogg", "Ice Cube",
-  "Method Man", "Redman", "Busta Rhymes", "Missy Elliott", "André 3000",
-  "Big Boi", "Killer Mike", "Common", "Talib Kweli", "Yasiin Bey",
-  "Ghostface Killah", "Raekwon", "GZA", "RZA", "Big Sean", "Wale",
-  "Curren$y", "Joey Bada$$", "Earl Sweatshirt", "Danny Brown", "Isaiah Rashad",
-  "Smino", "Saba", "Mick Jenkins", "Rapsody", "Tierra Whack", "Doechii",
-  "Flo Milli", "BIA", "Coi Leray", "Armani White", "Baby Keem",
-  "Lil Yachty", "Lil Uzi Vert", "Ski Mask the Slump God", "Kodak Black",
-  "Moneybagg Yo", "Key Glock", "EST Gee", "42 Dugg", "Lil Tjay",
-  "A Boogie wit da Hoodie", "Fivio Foreign", "Cash Cobain", "Veeze",
-  "Babyface Ray", "BossMan Dlow", "That Mexican OT", "Ken Carson",
-  "Destroy Lonely", "Yeat", "Trippie Redd", "Lil Tecca", "Swae Lee",
-  "Quavo", "Offset", "Gucci Mane", "Waka Flocka Flame", "Yo Gotti",
-  "Boosie Badazz", "Kevin Gates", "Plies", "Trina", "Eve", "Remy Ma",
-  "Lil' Kim", "Foxy Brown", "Da Brat", "MC Lyte", "Queen Latifah",
-  "Noname", "Maxo Kream", "Aminé", "Cordae", "Bas", "Ab-Soul", "Jay Rock",
-  "ScHoolboy Q", "Kid Cudi", "Chance the Rapper", "Vic Mensa",
-  "Lupe Fiasco", "Twista", "G Herbo", "Chief Keef", "Tink", "Dreezy",
-  "CupcakKe", "Westside Gunn", "Conway the Machine", "Benny the Butcher",
-  "Boldy James", "Roc Marciano", "Mach-Hommy", "Billy Woods", "Open Mike Eagle",
-  "Aesop Rock", "Blu", "Oddisee", "Skyzoo", "Elzhi", "Royce da 5'9\"",
-  "Black Thought", "Jadakiss", "Styles P", "Sheek Louch", "Fabolous",
-  "Cam'ron", "Juelz Santana", "Jim Jones", "Uncle Murda", "Dave East",
-  "Casanova", "Don Q",   // ---- R&B
-  "SZA", "Frank Ocean", "H.E.R.", "Summer Walker", "Jhené Aiko", "Kehlani",
-  "Brent Faiyaz", "Giveon", "Lucky Daye", "Ari Lennox", "Jazmine Sullivan",
-  "Alicia Keys", "Usher", "Miguel", "Ne-Yo", "John Legend", "Maxwell",
-  "D'Angelo", "Erykah Badu", "Jill Scott", "Toni Braxton", "Mary J. Blige",
-  "Monica", "Brandy", "Keyshia Cole", "Bryson Tiller", "6LACK", "Khalid",
-  "Leon Bridges", "Anderson .Paak", "Masego", "Victoria Monét", "Coco Jones",
-  "Muni Long", "Chlöe", "Halle Bailey", "Normani", "Teyana Taylor",
-  "Kali Uchis", "Syd", "Ravyn Lenae", "Queen Naija", "Kiana Ledé",
-  "Alex Isley", "UMI", "Joyce Wrice", "Amber Mark", "Sabrina Claudio",
-  "Tinashe", "Kelela", "Solange", "Janelle Monáe", "Andra Day",
-  "Fantasia", "Jennifer Hudson", "Ledisi", "Musiq Soulchild",
-  "Anthony Hamilton", "Raheem DeVaughn", "Eric Benét", "Kem", "Avant",
-  "Ginuwine", "Tyrese", "Joe", "Jaheim", "Boyz II Men", "SWV", "En Vogue",
-  "TLC", "Xscape", "Blackstreet", "New Edition", "Bell Biv DeVoe",
-  "Bobby Brown", "Johnny Gill", "Tevin Campbell", "Keith Sweat",
-  "Montell Jordan", "Donell Jones", "Carl Thomas", "Lyfe Jennings",
-  "Leela James", "Chrisette Michele", "Marsha Ambrosius", "Elle Varner",
-  "Sevyn Streeter", "Tank", "K. Michelle", "Tamar Braxton", "Faith Evans",
-  "Jacquees", "Ella Mai", "Mario", "Omarion",
-  "Bobby V", "Pleasure P", "Sammie", "Lloyd", "Trey Songz", "Chris Brown",
+/** The rap side of the roster. */
+export const ROSTER_RAP = [
+  "Kendrick Lamar", "J. Cole", "Travis Scott", "Future",
+  "Lil Wayne", "Nicki Minaj", "Cardi B", "Megan Thee Stallion",
+  "Tyler, The Creator", "A$AP Rocky", "Lil Baby", "Gunna",
+  "Playboi Carti", "Don Toliver", "Jack Harlow", "Roddy Ricch",
+  "Polo G", "Lil Durk", "Rod Wave", "Latto",
+  "GloRilla", "Ice Spice", "Sexyy Red", "Denzel Curry",
+  "JID", "Vince Staples", "Freddie Gibbs", "Pusha T",
+  "Rick Ross", "2 Chainz", "Jeezy", "T.I.",
+  "Ludacris", "Nas", "JAY-Z", "Eminem",
+  "Snoop Dogg", "Ice Cube", "Method Man", "Redman",
+  "Busta Rhymes", "Missy Elliott", "André 3000", "Big Boi",
+  "Killer Mike", "Common", "Talib Kweli", "Yasiin Bey",
+  "Ghostface Killah", "Raekwon", "GZA", "RZA",
+  "Big Sean", "Wale", "Curren$y", "Joey Bada$$",
+  "Earl Sweatshirt", "Danny Brown", "Isaiah Rashad", "Smino",
+  "Saba", "Mick Jenkins", "Rapsody", "Tierra Whack",
+  "Doechii", "Flo Milli", "BIA", "Coi Leray",
+  "Armani White", "Baby Keem", "Lil Yachty", "Lil Uzi Vert",
+  "Ski Mask the Slump God", "Kodak Black", "Moneybagg Yo", "Key Glock",
+  "EST Gee", "42 Dugg", "Lil Tjay", "A Boogie wit da Hoodie",
+  "Fivio Foreign", "Cash Cobain", "Veeze", "Babyface Ray",
+  "BossMan Dlow", "That Mexican OT", "Ken Carson", "Destroy Lonely",
+  "Yeat", "Trippie Redd", "Lil Tecca", "Swae Lee",
+  "Quavo", "Offset", "Gucci Mane", "Waka Flocka Flame",
+  "Yo Gotti", "Boosie Badazz", "Kevin Gates", "Plies",
+  "Trina", "Eve", "Remy Ma", "Lil' Kim",
+  "Foxy Brown", "Da Brat", "MC Lyte", "Queen Latifah",
+  "Noname", "Maxo Kream", "Aminé", "Cordae",
+  "Bas", "Ab-Soul", "Jay Rock", "ScHoolboy Q",
+  "Kid Cudi", "Chance the Rapper", "Vic Mensa", "Lupe Fiasco",
+  "Twista", "G Herbo", "Chief Keef", "Tink",
+  "Dreezy", "CupcakKe", "Westside Gunn", "Conway the Machine",
+  "Benny the Butcher", "Boldy James", "Roc Marciano", "Mach-Hommy",
+  "Billy Woods", "Open Mike Eagle", "Aesop Rock", "Blu",
+  "Oddisee", "Skyzoo", "Elzhi", "Royce da 5'9\"",
+  "Black Thought", "Jadakiss", "Styles P", "Sheek Louch",
+  "Fabolous", "Cam'ron", "Juelz Santana", "Jim Jones",
+  "Uncle Murda", "Dave East", "Casanova", "Don Q",
 ] as const;
+
+/** The R&B side of the roster. */
+export const ROSTER_RNB = [
+  "SZA", "Frank Ocean", "H.E.R.", "Summer Walker",
+  "Jhené Aiko", "Kehlani", "Brent Faiyaz", "Giveon",
+  "Lucky Daye", "Ari Lennox", "Jazmine Sullivan", "Alicia Keys",
+  "Usher", "Miguel", "Ne-Yo", "John Legend",
+  "Maxwell", "D'Angelo", "Erykah Badu", "Jill Scott",
+  "Toni Braxton", "Mary J. Blige", "Monica", "Brandy",
+  "Keyshia Cole", "Bryson Tiller", "6LACK", "Khalid",
+  "Leon Bridges", "Anderson .Paak", "Masego", "Victoria Monét",
+  "Coco Jones", "Muni Long", "Chlöe", "Halle Bailey",
+  "Normani", "Teyana Taylor", "Kali Uchis", "Syd",
+  "Ravyn Lenae", "Queen Naija", "Kiana Ledé", "Alex Isley",
+  "UMI", "Joyce Wrice", "Amber Mark", "Sabrina Claudio",
+  "Tinashe", "Kelela", "Solange", "Janelle Monáe",
+  "Andra Day", "Fantasia", "Jennifer Hudson", "Ledisi",
+  "Musiq Soulchild", "Anthony Hamilton", "Raheem DeVaughn", "Eric Benét",
+  "Kem", "Avant", "Ginuwine", "Tyrese",
+  "Joe", "Jaheim", "Boyz II Men", "SWV",
+  "En Vogue", "TLC", "Xscape", "Blackstreet",
+  "New Edition", "Bell Biv DeVoe", "Bobby Brown", "Johnny Gill",
+  "Tevin Campbell", "Keith Sweat", "Montell Jordan", "Donell Jones",
+  "Carl Thomas", "Lyfe Jennings", "Leela James", "Chrisette Michele",
+  "Marsha Ambrosius", "Elle Varner", "Sevyn Streeter", "Tank",
+  "K. Michelle", "Tamar Braxton", "Faith Evans", "Jacquees",
+  "Ella Mai", "Mario", "Omarion", "Bobby V",
+  "Pleasure P", "Sammie", "Lloyd", "Trey Songz",
+  "Chris Brown",
+] as const;
+
+export const ROSTER = [...ROSTER_RAP, ...ROSTER_RNB] as const;
+
+export type Category = "rap" | "rnb";
+
+const RAP_SET = new Set<string>(ROSTER_RAP);
+
+/** Which chart an artist belongs to. */
+export function categoryOf(name: string): Category {
+  return RAP_SET.has(name) ? "rap" : "rnb";
+}
+
+/**
+ * Genre pools, kept separate per category.
+ *
+ * Genre used to be drawn from one combined pool, which is how a rap artist
+ * ended up filed under neo-soul. Harmless while genre was decoration; not
+ * harmless once the rankings can be filtered by chart.
+ */
+export const RAP_GENRES = [
+  "drill", "trap", "boom bap", "emo rap", "gospel rap", "phonk",
+  "jersey club", "conscious rap", "horrorcore", "g-funk",
+];
+export const RNB_GENRES = [
+  "neo-soul", "alt-R&B", "trap soul", "contemporary R&B", "quiet storm",
+  "gospel soul", "funk", "new jack swing",
+];
+
+/**
+ * Deterministic genre for a name, drawn from its own category's pool.
+ *
+ * Derived rather than stored so existing runs pick up the correction without a
+ * reseed — the genre column on Artist predates the split and is no longer read
+ * for display.
+ */
+export function genreFor(name: string): string {
+  const pool = categoryOf(name) === "rap" ? RAP_GENRES : RNB_GENRES;
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return pool[h % pool.length];
+}
 
 /**
  * Generated names, used for every listing beyond the roster and for every
@@ -112,12 +171,6 @@ const STEM = [
   "sabl", "tund", "vior", "hexa", "ombr", "priv", "cael", "juri", "noct", "yarn",
 ];
 const TAIL = ["a", "o", "is", "en", "ix", "ae", "us", "i", "yn", "ova"];
-
-/** Genres the roster is drawn from, so headline names read plausibly. */
-export const ROSTER_GENRES = [
-  "drill", "trap soul", "neo-soul", "alt-R&B", "emo rap", "gospel rap",
-  "hyperpop", "jersey club", "phonk",
-];
 
 export const GENRES = [
   "bedroom pop", "drill", "hyperpop", "afrobeats", "indie folk", "amapiano",

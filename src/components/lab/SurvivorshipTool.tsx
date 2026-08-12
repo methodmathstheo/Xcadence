@@ -1,6 +1,8 @@
 "use client";
 
 import { ArtistLink, Empty, Panel, Stat } from "@/components/ui";
+import { Avatar } from "@/components/Avatar";
+import { useAvatars } from "@/lib/client/useAvatars";
 import { Slider } from "@/components/lab/ArtistPicker";
 import { fmtPct, fmtSignedPct, toneClass } from "@/lib/format";
 import type { CohortStats, SurvivorshipResult } from "@/lib/quant/cohort";
@@ -170,11 +172,13 @@ function Rows({
 }: {
   rows: { artistId: number; name: string; ret: number; survived: boolean }[];
 }) {
+  const { avatars } = useAvatars();
   if (rows.length === 0) return <Empty>No cohort members</Empty>;
   return (
     <ul>
       {rows.map((m) => (
         <li key={m.artistId} className="flex items-baseline gap-2 border-b border-line/50 px-3 py-1.5 text-xs">
+          <Avatar name={m.name} src={avatars[m.artistId]} size={18} />
           <ArtistLink id={m.artistId} name={m.name} className="truncate text-fg-dim" />
           {!m.survived && <span className="label shrink-0 text-down">delisted</span>}
           <span className={`num ml-auto shrink-0 ${toneClass(m.ret)}`}>{fmtSignedPct(m.ret)}</span>

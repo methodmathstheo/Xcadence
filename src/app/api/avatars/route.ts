@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { engine } from "@/lib/engine/engine";
-import { fetchOpenProfile } from "@/lib/music/openmusic";
+import { warmProfiles, warmState } from "@/lib/music/warmer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,45 +23,28 @@ const WARM_PER_CALL = 3;
  */
 export async function GET() {
   const w = await engine.ensureLoaded();
-  const ids = w.order.map((id) => ({ id, name: w.artists.get(id)!.name }));
 
   const cached = await prisma.artistProfile.findMany({
-    where: { artistId: { in: ids.map((r) => r.id) } },
-    select: { artistId: true, imageUrl: true, found: true },
+    select: { artistId: true, imageUrl: true },
   });
-  const have = new Set(cached.map((c) => c.artistId));
-
-  let warmed = 0;
-  for (const r of ids) {
-    if (have.has(r.id) || warmed >= WARM_PER_CALL) continue;
-    const open = await fetchOpenProfile(r.name);
-    await prisma.artistProfile.upsert({
-      where: { artistId: r.id },
-      create: {
-        artistId: r.id,
-        mbid: open.mbid,
-        bio: open.bio,
-        bioUrl: open.bioUrl,
-        area: open.area,
-        beginYear: open.beginYear,
-        imageUrl: open.photoUrl,
-        releases: JSON.stringify(open.releases),
-        found: open.found,
-      },
-      update: {},
-    });
-    if (open.photoUrl) cached.push({ artistId: r.id, imageUrl: open.photoUrl, found: true });
-    warmed++;
-  }
-
   const avatars: Record<number, string> = {};
   for (const c of cached) if (c.imageUrl) avatars[c.artistId] = c.imageUrl;
+
+  // If the background pass is not running and rows are still missing, start it.
+  // Covers a reseed, which creates artists the boot-time pass never saw.
+  if (!warmState.running && cached.length < w.order.length) {
+    void warmProfiles(w.runId).catch(() => {});
+  }
 
   return NextResponse.json({
     avatars,
     configured: true,
-    rosterCount: ids.length,
+    rosterCount: w.order.length,
     resolved: Object.keys(avatars).length,
-    pending: ids.filter((r) => !have.has(r.id)).length - warmed,
+    pending: Math.max(0, w.order.length - cached.length),
+    warming: warmState.running,
+    warmDone: warmState.done,
+    warmTotal: warmState.total,
+    lastName: warmState.lastName,
   });
 }
