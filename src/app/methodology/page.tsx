@@ -17,10 +17,26 @@ export default function MethodologyPage() {
 
       <Section title="What the data is">
         <p>
-          Every artist, listener count, royalty figure and price in this application is generated.
-          No real artist, label, catalogue or streaming service is represented, and no external
-          data source is read. The names are assembled from word lists. Nothing here should be
-          taken as a claim about any real person or company.
+          <Strong>Every number in this application is generated.</Strong> Listener counts, growth
+          rates, royalty figures, prices, and the hidden quality and hazard parameters behind them
+          are all output from a seeded random number generator. No external data source is read,
+          and no real catalogue, chart, contract or streaming service is represented.
+        </p>
+        <p>
+          <Strong>The names are a mix.</Strong> The top hundred listings carry the names of real US
+          rap and R&amp;B artists; every other listing, and every artist that debuts during a run,
+          is invented from word lists. The real names are labels and nothing more — no figure
+          attached to them was measured, estimated or derived from anything that person has
+          actually done, and their position in the roster is not a ranking.
+        </p>
+        <p>
+          This matters most where the simulation is unflattering. The engine assigns every listing
+          a hidden probability of ceasing to be commercially active, and generates events like{" "}
+          <em>dropped by label</em>, <em>faded out</em> and <em>no longer commercially active</em>.
+          When one of those lands on a real name it is a draw from a random number generator,
+          carries no information about that person, and should not be read as one. Real names are
+          assigned to the highest-quality artists in the universe specifically so this is the
+          uncommon case, but the same process applies to every listing and nothing is exempt.
         </p>
         <p>
           A run is fully determined by its seed. The same seed rebuilds the same universe, the same
@@ -264,6 +280,11 @@ C(q)     = vMax · b · ln(1 + e^(q/b))`}</Pre>
           <li>
             Any investable product. Credits are virtual, there is no settlement, and the prices
             here are the output of a random number generator with a documented seed.
+          </li>
+          <li>
+            Anything about the real people whose names appear on the roster. Their careers,
+            earnings, audiences, contracts and prospects are not modelled, not referenced, and not
+            knowable from anything on this screen.
           </li>
         </ul>
       </Section>

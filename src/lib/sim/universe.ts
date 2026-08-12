@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { RNG } from "@/lib/rng";
-import { generateNames, GENRES } from "@/lib/sim/names";
+import { generateNames, GENRES, ROSTER, ROSTER_GENRES } from "@/lib/sim/names";
 import {
   advanceDays,
   applyMarketShock,
@@ -115,6 +115,22 @@ export async function createRun(seed: number): Promise<number> {
       listenerTrail: [listeners],
       dirty: false,
     });
+  }
+
+  // ------------------------------------------------------- headline roster
+  // Real names go to the highest-quality artists in the universe. Assigned at
+  // random they would routinely draw exits and label drops, and a simulation
+  // publishing fabricated career obituaries against real people is not
+  // something to ship even into a private sandbox. Placing them at the top
+  // does not exempt them from the process — the same shocks apply — it just
+  // makes the common case a plausible one.
+  const byQuality = states
+    .map((a, i) => ({ i, q: a.trueQuality }))
+    .sort((x, y) => y.q - x.q);
+  for (let r = 0; r < Math.min(ROSTER.length, byQuality.length); r++) {
+    const a = states[byQuality[r].i];
+    a.name = ROSTER[r];
+    a.genre = rng.fork("roster", r).pick(ROSTER_GENRES);
   }
 
   // ------------------------------------------------- 36 months of history

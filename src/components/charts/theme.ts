@@ -12,7 +12,7 @@ export const CHART = {
 
 export const axisProps = {
   stroke: CHART.axis,
-  tick: { fill: CHART.axis, fontSize: 10, fontFamily: "var(--font-geist-mono)" },
+  tick: { fill: CHART.axis, fontSize: 10, fontFamily: "var(--font-mono-ui)" },
   tickLine: false,
   axisLine: { stroke: CHART.grid },
 } as const;
@@ -23,7 +23,7 @@ export const tooltipStyle = {
     border: "1px solid #262b35",
     borderRadius: 0,
     fontSize: 11,
-    fontFamily: "var(--font-geist-mono)",
+    fontFamily: "var(--font-mono-ui)",
   },
   labelStyle: { color: "#98a1b0" },
   itemStyle: { color: "#d8dce4" },

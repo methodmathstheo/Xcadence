@@ -15,8 +15,8 @@
   --color-cyan: #4cc4f0;
   --color-violet: #a78bfa;
 
-  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-mono-ui), ui-monospace, SFMono-Regular, monospace;
+  --font-sans: var(--font-display), ui-sans-serif, system-ui, sans-serif;
 }
 
 html,
@@ -28,21 +28,30 @@ body {
 body {
   font-family: var(--font-sans);
   font-size: 13px;
+  letter-spacing: -0.01em;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3 {
+  letter-spacing: -0.02em;
+  font-weight: 500;
 }
 
 /* Every number in this application is monospaced and tabular. Columns of
    figures that jitter as digits change are unreadable at one update a second. */
 .num {
   font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum" 1;
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-feature-settings: "tnum" 1, "zero" 1;
+  letter-spacing: -0.015em;
 }
 
 .label {
   font-family: var(--font-mono);
   font-size: 10px;
-  letter-spacing: 0.09em;
+  font-weight: 500;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--color-fg-mute);
 }
