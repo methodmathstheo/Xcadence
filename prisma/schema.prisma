@@ -87,6 +87,7 @@ model Artist {
   price     Float
   prevPrice Float
 
+  profile   ArtistProfile?
   months    ArtistMonth[]
   prices    PricePoint[]
   trades    Trade[]
@@ -97,6 +98,26 @@ model Artist {
 
   @@index([runId, active])
   @@index([runId, tier])
+}
+
+/// Cached Spotify lookup for a roster artist. Only real names are ever looked
+/// up; generated artists have no profile to fetch and never get a row here.
+/// `found = false` is cached too, so a miss is not retried on every page load.
+model ArtistProfile {
+  id          Int      @id @default(autoincrement())
+  artistId    Int      @unique
+  artist      Artist   @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  spotifyId   String?
+  imageUrl    String?
+  followers   Int?
+  popularity  Int?
+  /// JSON array of Spotify's own genre tags.
+  genres      String?
+  externalUrl String?
+  /// JSON array of {name, type, year, imageUrl, url}. Real releases only.
+  releases    String?
+  found       Boolean  @default(false)
+  fetchedAt   DateTime @default(now())
 }
 
 /// Monthly fundamental record: 36 months of seeded history then forward-generated.

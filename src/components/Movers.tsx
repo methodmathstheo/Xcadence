@@ -2,6 +2,8 @@
 
 import { useMemo } from "react";
 import { useMarket } from "@/lib/client/useMarket";
+import { useAvatars } from "@/lib/client/useAvatars";
+import { Avatar } from "@/components/Avatar";
 import { ArtistLink, Empty } from "@/components/ui";
 import { fmtCredits, fmtSignedPct } from "@/lib/format";
 import type { ArtistSummary } from "@/lib/data/provider";
@@ -44,12 +46,14 @@ function List({
   rows: { id: number; name: string; price: number; chg: number }[];
   tone: string;
 }) {
+  const { avatars } = useAvatars();
   return (
     <div className="bg-panel">
       <div className="label border-b border-line px-3 py-1.5">{title}</div>
       <ul>
         {rows.map((r) => (
           <li key={r.id} className="flex items-baseline gap-2 px-3 py-1.5 text-xs">
+            <Avatar name={r.name} src={avatars[r.id]} size={18} />
             <ArtistLink id={r.id} name={r.name} className="truncate text-fg-dim" />
             <span className="num ml-auto shrink-0 text-fg-mute">{fmtCredits(r.price)}</span>
             <span className={`num w-16 shrink-0 text-right ${tone}`}>

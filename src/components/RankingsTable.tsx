@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useMarket } from "@/lib/client/useMarket";
+import { useAvatars } from "@/lib/client/useAvatars";
+import { Avatar } from "@/components/Avatar";
 import { LiveCell } from "@/components/LiveCell";
 import { ArtistLink, Empty, TierBadge } from "@/components/ui";
 import { fmtCredits, fmtListeners, fmtPct, fmtSignedPct, toneClass } from "@/lib/format";
@@ -42,6 +44,7 @@ export function RankingsTable({
   defaultLimit?: number;
 }) {
   const m = useMarket();
+  const { avatars } = useAvatars();
   const [sort, setSort] = useState<SortKey>("rank");
   const [dir, setDir] = useState<1 | -1>(1);
   const [query, setQuery] = useState("");
@@ -148,9 +151,14 @@ export function RankingsTable({
             {view.slice(0, limit).map((a) => (
               <tr key={a.id} className="border-b border-line/50 hover:bg-panel-2">
                 <td className="num px-3 py-1.5 text-right text-fg-mute">{a.rank}</td>
-                <td className="max-w-0 truncate px-3 py-1.5">
-                  <ArtistLink id={a.id} name={a.name} />
-                  <span className="ml-2 text-fg-mute">{a.genre}</span>
+                <td className="max-w-0 px-3 py-1.5">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <Avatar name={a.name} src={avatars[a.id]} size={24} />
+                    <span className="min-w-0 truncate">
+                      <ArtistLink id={a.id} name={a.name} />
+                      <span className="ml-2 text-fg-mute">{a.genre}</span>
+                    </span>
+                  </span>
                 </td>
                 <td className="px-3 py-1.5">
                   <TierBadge tier={a.tier} />

@@ -6,6 +6,9 @@ import { useMarket } from "@/lib/client/useMarket";
 import { SeriesChart } from "@/components/charts/SeriesChart";
 import { LiveCell } from "@/components/LiveCell";
 import { Empty, Panel, Stat, TierBadge } from "@/components/ui";
+import {
+  AboutPanel, ArtistHeader, DiscographyPanel, type ProfilePayload,
+} from "@/components/ArtistProfile";
 import { EVENT_LABEL } from "@/lib/sim/constants";
 import {
   fmtCompact, fmtCredits, fmtListeners, fmtPct, fmtSignedPct, toneClass,
@@ -42,6 +45,7 @@ export default function ArtistPage({ params }: { params: Promise<{ id: string }>
   const artistId = Number(id);
   const m = useMarket();
   const [d, setD] = useState<Detail | null>(null);
+  const [profile, setProfile] = useState<ProfilePayload | null>(null);
   const [err, setErr] = useState(false);
   const livePrices = useRef<{ t: number; v: number }[]>([]);
 
@@ -58,6 +62,15 @@ export default function ArtistPage({ params }: { params: Promise<{ id: string }>
     // The heavy series only change on simulated month ends; a slow refresh
     // keeps them current without re-fetching everything every tick.
     const t = setInterval(load, 20_000);
+
+    // Profile is fetched once: photos and catalogues do not change on a tick.
+    fetch(`/api/artist/${artistId}/profile`)
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((j: ProfilePayload) => {
+        if (!stop) setProfile(j);
+      })
+      .catch(() => {});
+
     return () => {
       stop = true;
       clearInterval(t);
@@ -107,9 +120,11 @@ export default function ArtistPage({ params }: { params: Promise<{ id: string }>
   return (
     <div className="mx-auto flex max-w-[1600px] flex-col gap-4 px-4 py-4">
       <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl text-fg">{a.name}</h1>
+        <div className="flex items-center gap-4">
+          <ArtistHeader name={a.name} profile={profile} />
+          <div>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl text-fg">{a.name}</h1>
             <TierBadge tier={a.tier} />
             {!a.active && (
               <span className="label border border-down/50 px-1.5 py-px text-down">
@@ -121,6 +136,17 @@ export default function ArtistPage({ params }: { params: Promise<{ id: string }>
             {a.genre} · debut {fmtSimDate(a.debutMs)} · contract = 1/
             {fmtCompact(a.unitScale)} of the royalty claim
           </p>
+          {profile?.spotify?.url && (
+            <a
+              href={profile.spotify.url}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="label mt-1 inline-block text-up hover:underline"
+            >
+              Open on Spotify ↗
+            </a>
+          )}
+          </div>
         </div>
         <Link href="/trade" className="label border border-line-2 px-3 py-1.5 hover:border-accent hover:text-accent">
           Trade this artist →
@@ -226,6 +252,11 @@ export default function ArtistPage({ params }: { params: Promise<{ id: string }>
             </table>
           )}
         </Panel>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[2fr_3fr]">
+        <AboutPanel profile={profile} />
+        <DiscographyPanel profile={profile} />
       </div>
 
       <Panel title="Event log" bodyClass="max-h-[300px] overflow-auto">

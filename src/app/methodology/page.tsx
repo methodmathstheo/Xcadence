@@ -30,6 +30,22 @@ export default function MethodologyPage() {
           actually done, and their position in the roster is not a ranking.
         </p>
         <p>
+          <Strong>Photographs and discographies come from Spotify, or from nowhere.</Strong> When
+          Spotify credentials are configured, roster artists show their real profile photo,
+          follower and popularity figures, and their real release list, fetched from the Spotify
+          Web API and cached. Generated artists get a monogram and a release history invented
+          alongside the rest of them. No real artist is ever given a fabricated catalogue: an
+          invented album title attached to a real person reads as a factual claim, and nothing in
+          this simulation is entitled to make one. Without credentials the roster simply shows no
+          discography.
+        </p>
+        <p>
+          Nothing fetched from Spotify feeds the market. Prices, listeners, royalties, growth,
+          hazard and every hidden parameter are simulated. The follower and popularity numbers are
+          displayed on the artist page and used nowhere else — no valuation, no bot, and no
+          ranking reads them.
+        </p>
+        <p>
           This matters most where the simulation is unflattering. The engine assigns every listing
           a hidden probability of ceasing to be commercially active, and generates events like{" "}
           <em>dropped by label</em>, <em>faded out</em> and <em>no longer commercially active</em>.
