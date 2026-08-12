@@ -1,0 +1,284 @@
+// Cadence — music royalty exchange simulation
+// SQLite is the durable store; the tick engine keeps a hot in-memory mirror
+// and write-behinds to these tables so the clock survives a restart.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// One simulation run. `reset to seed` retires the current run and creates a new one.
+model Run {
+  id          Int      @id @default(autoincrement())
+  seed        Int
+  createdAt   DateTime @default(now())
+  active      Boolean  @default(true)
+
+  /// Simulated clock, ms since epoch. Float (not BigInt) — exact to 2^53 and JSON-safe.
+  simMs       Float
+  startMs     Float
+  /// Time acceleration: 1 | 60 | 1440 | 43200
+  speed       Int      @default(1440)
+  running     Boolean  @default(true)
+  tick        Int      @default(0)
+  /// yyyy*12+mm of the last month whose royalties/fundamentals were accrued
+  lastMonthKey Int
+
+  /// Divisors fixing both index variants at 100.00 on the run's first tick.
+  indexBaseEqual    Float @default(1)
+  indexBaseWeighted Float @default(1)
+
+  artists     Artist[]
+  bots        Bot[]
+  trades      Trade[]
+  events      MarketEvent[]
+  positions   Position[]
+  offerings   Offering[]
+  offeringPositions OfferingPosition[]
+  indexPoints IndexPoint[]
+  equityPoints EquityPoint[]
+  account     Account?
+
+  @@index([active])
+}
+
+model Artist {
+  id        Int     @id @default(autoincrement())
+  runId     Int
+  run       Run     @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  name      String
+  genre     String
+  tier      String // superstar | established | emerging | dormant
+  debutMs   Float
+  active    Boolean @default(true)
+  exitMs    Float?
+  exitReason String?
+
+  // ---- Hidden ground truth. Never exposed outside /inspector, the adverse
+  // ---- selection tool and the methodology page.
+  trueQuality Float // 0..1 latent quality driving long-run drift
+  hazardRate  Float // baseline monthly probability of commercial exit
+  driftMu     Float // monthly log-growth drift
+  sigma       Float // monthly log-growth vol
+  breakoutP   Float // monthly probability of a power-law jump
+
+  // ---- Observable fundamentals
+  listeners      Float
+  listeners30    Float // listeners 30 sim-days ago
+  listeners90    Float // listeners 90 sim-days ago
+  volatility     Float // realised, annualised
+  royaltyRate    Float // credits of monthly royalty per monthly listener
+
+  // ---- Market state (LMSR)
+  /// Contract unit size, fixed at listing: price = PV / unitScale. Chosen so
+  /// every artist opens in a comparable credit range regardless of tier.
+  unitScale Float @default(10000)
+  q         Float @default(0) // net shares held by the market
+  b         Float // liquidity parameter
+  vMax      Float // contract notional cap; price lives in (0, vMax)
+  price     Float
+  prevPrice Float
+
+  months    ArtistMonth[]
+  prices    PricePoint[]
+  trades    Trade[]
+  events    MarketEvent[]
+  positions Position[]
+  botPositions BotPosition[]
+  offerings Offering[]
+
+  @@index([runId, active])
+  @@index([runId, tier])
+}
+
+/// Monthly fundamental record: 36 months of seeded history then forward-generated.
+model ArtistMonth {
+  id        Int    @id @default(autoincrement())
+  artistId  Int
+  artist    Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  monthKey  Int    // yyyy*12 + (m-1)
+  dateMs    Float
+  listeners Float
+  royalty   Float
+  rank      Int
+
+  @@unique([artistId, monthKey])
+  @@index([artistId, monthKey])
+}
+
+/// Persisted price series (month closes + every user trade). Intra-month detail
+/// lives in an in-memory ring buffer and is not durable by design.
+model PricePoint {
+  id       Int    @id @default(autoincrement())
+  artistId Int
+  artist   Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  tMs      Float
+  price    Float
+
+  @@index([artistId, tMs])
+}
+
+model Bot {
+  id       Int    @id @default(autoincrement())
+  runId    Int
+  run      Run    @relation(fields: [runId], references: [id], onDelete: Cascade)
+  name     String
+  strategy String // momentum | meanreversion | fundamental | noise
+  cash     Float
+  aggression Float
+  horizon  Int
+  positions BotPosition[]
+  trades   Trade[]
+
+  @@index([runId])
+}
+
+model BotPosition {
+  id       Int    @id @default(autoincrement())
+  botId    Int
+  bot      Bot    @relation(fields: [botId], references: [id], onDelete: Cascade)
+  artistId Int
+  artist   Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  qty      Float
+  costBasis Float
+
+  @@unique([botId, artistId])
+}
+
+model Trade {
+  id          Int     @id @default(autoincrement())
+  runId       Int
+  run         Run     @relation(fields: [runId], references: [id], onDelete: Cascade)
+  artistId    Int
+  artist      Artist  @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  botId       Int?
+  bot         Bot?    @relation(fields: [botId], references: [id], onDelete: Cascade)
+  actor       String  // USER | BOT
+  side        String  // BUY | SELL
+  qty         Float
+  cost        Float   // credits paid (positive) or received (negative)
+  priceBefore Float
+  priceAfter  Float
+  tMs         Float
+  realised    Float   @default(0)
+
+  @@index([runId, id])
+  @@index([artistId, id])
+  @@index([runId, actor, id])
+}
+
+model MarketEvent {
+  id       Int     @id @default(autoincrement())
+  runId    Int
+  run      Run     @relation(fields: [runId], references: [id], onDelete: Cascade)
+  artistId Int?
+  artist   Artist? @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  kind     String  // sync | playlist | viral | labeldrop | exit | breakout | offering | payout
+  magnitude Float
+  headline String
+  tMs      Float
+
+  @@index([runId, id])
+  @@index([artistId, id])
+}
+
+/// The single private user's cash account.
+model Account {
+  id           Int   @id @default(autoincrement())
+  runId        Int   @unique
+  run          Run   @relation(fields: [runId], references: [id], onDelete: Cascade)
+  cash         Float
+  startingCash Float
+  realisedPnl  Float @default(0)
+  sessionStartEquity Float
+}
+
+model Position {
+  id        Int    @id @default(autoincrement())
+  runId     Int
+  run       Run    @relation(fields: [runId], references: [id], onDelete: Cascade)
+  artistId  Int
+  artist    Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  qty       Float
+  costBasis Float  // total credits paid for the open qty
+  realised  Float  @default(0)
+
+  @@unique([runId, artistId])
+}
+
+/// Primary market: an artist sells a slice of future royalties.
+model Offering {
+  id          Int    @id @default(autoincrement())
+  runId       Int
+  run         Run    @relation(fields: [runId], references: [id], onDelete: Cascade)
+  artistId    Int
+  artist      Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  pctRoyalty  Float  // share of the artist's royalty stream on offer, 0..1
+  askCredits  Float
+  termMonths  Int
+  openMs      Float
+  expiresMs   Float
+  status      String @default("OPEN") // OPEN | FILLED | EXPIRED | CLOSED
+  filled      Float  @default(0)      // credits raised so far (user + synthetic)
+  positions   OfferingPosition[]
+
+  @@index([runId, status])
+}
+
+model OfferingPosition {
+  id          Int      @id @default(autoincrement())
+  runId       Int
+  run         Run      @relation(fields: [runId], references: [id], onDelete: Cascade)
+  offeringId  Int
+  offering    Offering @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  credits     Float    // capital deployed by the user
+  sharePct    Float    // user's share of the artist's royalty stream
+  startMonthKey Int
+  endMonthKey   Int
+  royalties   Float    @default(0)
+  monthsPaid  Int      @default(0)
+  active      Boolean  @default(true)
+  payments    RoyaltyPayment[]
+
+  @@index([runId, active])
+}
+
+model RoyaltyPayment {
+  id         Int              @id @default(autoincrement())
+  positionId Int
+  position   OfferingPosition @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  monthKey   Int
+  dateMs     Float
+  amount     Float
+
+  @@index([positionId, monthKey])
+}
+
+model IndexPoint {
+  id       Int   @id @default(autoincrement())
+  runId    Int
+  run      Run   @relation(fields: [runId], references: [id], onDelete: Cascade)
+  tMs      Float
+  equal    Float
+  weighted Float
+
+  @@index([runId, tMs])
+}
+
+model EquityPoint {
+  id          Int   @id @default(autoincrement())
+  runId       Int
+  run         Run   @relation(fields: [runId], references: [id], onDelete: Cascade)
+  tMs         Float
+  equity      Float
+  cash        Float
+  marketValue Float
+  realised    Float
+
+  @@index([runId, tMs])
+}
