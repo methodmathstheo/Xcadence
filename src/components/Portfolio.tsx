@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMarket } from "@/lib/client/useMarket";
 import { SeriesChart } from "@/components/charts/SeriesChart";
 import { ArtistLink, Empty, Panel, Stat, TierBadge } from "@/components/ui";
@@ -26,6 +27,84 @@ export interface PortfolioData {
     artist: { id: number; name: string };
   }[];
   equity: { tMs: number; equity: number; cash: number; marketValue: number; realised: number }[];
+}
+
+/**
+ * Compact book summary for the trading desk. The full analytics — risk,
+ * correlation, growth against the index, suggestions — live on /portfolio, and
+ * duplicating them beside the ticket just made both screens harder to read.
+ */
+export function PositionsStrip({
+  data,
+  onPick,
+}: {
+  data: PortfolioData;
+  onPick: (id: number) => void;
+}) {
+  const m = useMarket();
+  const holdings = data.holdings.map((h) => {
+    const price = m.quote(h.artistId, h.price).price;
+    const marketValue = h.qty * price;
+    return { ...h, price, marketValue, unrealised: marketValue - h.costBasis };
+  });
+  const equity = m.account.equity || data.account.equity;
+
+  return (
+    <Panel
+      title="Your book"
+      right={
+        <Link href="/portfolio" className="label hover:text-accent">
+          Full portfolio & suggestions →
+        </Link>
+      }
+      bodyClass="max-h-[280px] overflow-auto"
+    >
+      {holdings.length === 0 ? (
+        <Empty>No positions yet</Empty>
+      ) : (
+        <table className="w-full text-xs">
+          <thead className="sticky top-0 bg-panel">
+            <tr className="border-b border-line">
+              <Th>Artist</Th>
+              <Th right>Qty</Th>
+              <Th right>Avg</Th>
+              <Th right>Mark</Th>
+              <Th right>Value</Th>
+              <Th right>Unrealised</Th>
+              <Th right>Weight</Th>
+            </tr>
+          </thead>
+          <tbody>
+            {holdings.map((h) => (
+              <tr
+                key={h.artistId}
+                onClick={() => onPick(h.artistId)}
+                className="cursor-pointer border-b border-line/50 hover:bg-panel-2"
+              >
+                <td className="max-w-0 truncate px-3 py-1.5">
+                  <ArtistLink id={h.artistId} name={h.name} />
+                </td>
+                <td className={`num px-3 py-1.5 text-right ${h.qty < 0 ? "text-down" : ""}`}>
+                  {h.qty.toFixed(0)}
+                </td>
+                <td className="num px-3 py-1.5 text-right text-fg-mute">{fmtCredits(h.avgPrice)}</td>
+                <td className="px-3 py-1.5 text-right">
+                  <LiveCell value={h.price} render={(v) => fmtCredits(v)} />
+                </td>
+                <td className="num px-3 py-1.5 text-right">{fmtCompact(h.marketValue)}</td>
+                <td className={`num px-3 py-1.5 text-right ${toneClass(h.unrealised)}`}>
+                  {fmtSigned(h.unrealised, 0)}
+                </td>
+                <td className="num px-3 py-1.5 text-right text-fg-mute">
+                  {fmtPct(equity > 0 ? Math.abs(h.marketValue) / equity : 0, 0)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </Panel>
+  );
 }
 
 export function PortfolioPanels({ data, onPick }: { data: PortfolioData; onPick: (id: number) => void }) {
@@ -70,7 +149,7 @@ export function PortfolioPanels({ data, onPick }: { data: PortfolioData; onPick:
       </div>
 
       {concentrated.length > 0 && (
-        <div className="border border-accent/50 bg-accent/5 px-3 py-2 text-[11px] text-accent">
+        <div className="border border-accent/50 bg-accent/5 px-3 py-2 text-xs text-accent">
           <span className="label text-accent">Concentration</span>{" "}
           {concentrated
             .map((h) => `${h.name} is ${fmtPct(Math.abs(h.marketValue) / equity, 0)} of equity`)
@@ -86,7 +165,7 @@ export function PortfolioPanels({ data, onPick }: { data: PortfolioData; onPick:
           {holdings.length === 0 ? (
             <Empty>No positions</Empty>
           ) : (
-            <table className="w-full text-[11px]">
+            <table className="w-full text-xs">
               <thead className="sticky top-0 bg-panel">
                 <tr className="border-b border-line">
                   <Th>Artist</Th>
@@ -105,25 +184,25 @@ export function PortfolioPanels({ data, onPick }: { data: PortfolioData; onPick:
                     onClick={() => onPick(h.artistId)}
                     className="cursor-pointer border-b border-line/50 hover:bg-panel-2"
                   >
-                    <td className="max-w-0 truncate px-2 py-1">
+                    <td className="max-w-0 truncate px-2 py-1.5">
                       <ArtistLink id={h.artistId} name={h.name} />
                       {!h.active && <span className="label ml-2 text-down">exited</span>}
                     </td>
-                    <td className={`num px-2 py-1 text-right ${h.qty < 0 ? "text-down" : ""}`}>
+                    <td className={`num px-2 py-1.5 text-right ${h.qty < 0 ? "text-down" : ""}`}>
                       {h.qty.toFixed(0)}
                     </td>
-                    <td className="num px-2 py-1 text-right text-fg-mute">
+                    <td className="num px-2 py-1.5 text-right text-fg-mute">
                       {fmtCredits(h.avgPrice)}
                     </td>
-                    <td className="px-2 py-1 text-right">
+                    <td className="px-2 py-1.5 text-right">
                       <LiveCell value={h.price} render={(v) => fmtCredits(v)} />
                     </td>
-                    <td className="num px-2 py-1 text-right">{fmtCompact(h.marketValue)}</td>
-                    <td className={`num px-2 py-1 text-right ${toneClass(h.unrealised)}`}>
+                    <td className="num px-2 py-1.5 text-right">{fmtCompact(h.marketValue)}</td>
+                    <td className={`num px-2 py-1.5 text-right ${toneClass(h.unrealised)}`}>
                       {fmtSigned(h.unrealised, 0)}
                     </td>
                     <td
-                      className={`num px-2 py-1 text-right ${
+                      className={`num px-2 py-1.5 text-right ${
                         equity > 0 && Math.abs(h.marketValue) / equity > data.concentrationLimit
                           ? "text-accent"
                           : "text-fg-mute"
@@ -154,7 +233,7 @@ export function PortfolioPanels({ data, onPick }: { data: PortfolioData; onPick:
         {data.blotter.length === 0 ? (
           <Empty>You have not traded yet</Empty>
         ) : (
-          <table className="w-full text-[11px]">
+          <table className="w-full text-xs">
             <thead className="sticky top-0 bg-panel">
               <tr className="border-b border-line">
                 <Th>Date</Th>
@@ -170,25 +249,25 @@ export function PortfolioPanels({ data, onPick }: { data: PortfolioData; onPick:
             <tbody>
               {data.blotter.map((t) => (
                 <tr key={t.id} className="border-b border-line/50 hover:bg-panel-2">
-                  <td className="num px-2 py-1 text-fg-mute">{fmtSimDate(t.tMs)}</td>
-                  <td className={`label px-2 py-1 ${t.side === "BUY" ? "text-up" : "text-down"}`}>
+                  <td className="num px-2 py-1.5 text-fg-mute">{fmtSimDate(t.tMs)}</td>
+                  <td className={`label px-2 py-1.5 ${t.side === "BUY" ? "text-up" : "text-down"}`}>
                     {t.side}
                   </td>
-                  <td className="max-w-0 truncate px-2 py-1">
+                  <td className="max-w-0 truncate px-2 py-1.5">
                     <ArtistLink id={t.artist.id} name={t.artist.name} />
                   </td>
-                  <td className="num px-2 py-1 text-right">{Math.abs(t.qty).toFixed(0)}</td>
-                  <td className="num px-2 py-1 text-right">
+                  <td className="num px-2 py-1.5 text-right">{Math.abs(t.qty).toFixed(0)}</td>
+                  <td className="num px-2 py-1.5 text-right">
                     {fmtCredits(Math.abs(t.cost / (t.qty || 1)))}
                   </td>
-                  <td className="num px-2 py-1 text-right text-fg-mute">
+                  <td className="num px-2 py-1.5 text-right text-fg-mute">
                     {fmtSignedPct(
                       t.priceBefore > 0 ? t.priceAfter / t.priceBefore - 1 : 0,
                       2,
                     )}
                   </td>
-                  <td className="num px-2 py-1 text-right">{fmtCompact(-t.cost)}</td>
-                  <td className={`num px-2 py-1 text-right ${toneClass(t.realised)}`}>
+                  <td className="num px-2 py-1.5 text-right">{fmtCompact(-t.cost)}</td>
+                  <td className={`num px-2 py-1.5 text-right ${toneClass(t.realised)}`}>
                     {t.realised === 0 ? "—" : fmtSigned(t.realised, 0)}
                   </td>
                 </tr>

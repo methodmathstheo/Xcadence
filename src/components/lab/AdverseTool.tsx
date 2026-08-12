@@ -134,13 +134,13 @@ export function AdverseTool({
             </LineChart>
           </ResponsiveContainer>
         </div>
-        <p className="px-3 pb-2 text-[10px] text-fg-mute">
+        <p className="px-3 pb-2 text-[11px] text-fg-mute">
           Violet: mean hidden quality of the artists who accept. Green dashed: how many accept.
         </p>
       </Panel>
 
       <Panel title="Unravelling · repricing at the accepting pool's average value">
-        <table className="w-full text-[11px]">
+        <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-line">
               <th className="label px-3 py-1.5 text-left font-normal">Round</th>
@@ -153,11 +153,11 @@ export function AdverseTool({
           <tbody>
             {data.unravelling.map((r) => (
               <tr key={r.round} className="border-b border-line/50">
-                <td className="num px-3 py-1 text-fg-mute">{r.round}</td>
-                <td className="num px-3 py-1 text-right">{r.price.toFixed(3)}×</td>
-                <td className="num px-3 py-1 text-right">{r.accepted}</td>
-                <td className="num px-3 py-1 text-right">{r.poolQuality.toFixed(3)}</td>
-                <td className={`num px-3 py-1 text-right ${r.priceToValue > 1 ? "text-down" : "text-up"}`}>
+                <td className="num px-3 py-1.5 text-fg-mute">{r.round}</td>
+                <td className="num px-3 py-1.5 text-right">{r.price.toFixed(3)}×</td>
+                <td className="num px-3 py-1.5 text-right">{r.accepted}</td>
+                <td className="num px-3 py-1.5 text-right">{r.poolQuality.toFixed(3)}</td>
+                <td className={`num px-3 py-1.5 text-right ${r.priceToValue > 1 ? "text-down" : "text-up"}`}>
                   {r.priceToValue.toFixed(2)}
                 </td>
               </tr>
@@ -165,14 +165,14 @@ export function AdverseTool({
           </tbody>
         </table>
         {data.collapsed && (
-          <p className="border-t border-line px-3 py-2 text-[11px] text-down">
+          <p className="border-t border-line px-3 py-2 text-xs text-down">
             The market closed. At the price the buyer was willing to pay given who was still
             selling, nobody was willing to sell.
           </p>
         )}
       </Panel>
 
-      <p className="max-w-4xl text-[11px] leading-relaxed text-fg-mute">
+      <p className="max-w-4xl text-xs leading-relaxed text-fg-mute">
         An artist sells when the offer beats what they privately believe their stream is worth.
         Their belief blends the market&apos;s tier-based valuation with the truth, weighted by the
         information slider; at 0% they know no more than the buyer and the pool is unbiased, and

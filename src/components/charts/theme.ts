@@ -8,6 +8,8 @@ export const CHART = {
   down: "#ff5d5d",
   violet: "#a78bfa",
   band: "#4cc4f0",
+  accent: "#f0b429",
+  cyan: "#4cc4f0",
 } as const;
 
 export const axisProps = {

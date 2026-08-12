@@ -49,7 +49,7 @@ export function ClockBar() {
         <button
           onClick={() => run({ action: m.clock.running ? "pause" : "play" }, "run")}
           disabled={pending !== null}
-          className="border border-line-2 px-3 py-1 text-xs hover:border-accent hover:text-accent disabled:opacity-40"
+          className="border border-line-2 px-3 py-1.5 text-xs hover:border-accent hover:text-accent disabled:opacity-40"
         >
           {m.clock.running ? "❙❙ Pause" : "▶ Play"}
         </button>
@@ -58,7 +58,7 @@ export function ClockBar() {
           value={m.clock.speed}
           onChange={(e) => run({ action: "speed", speed: Number(e.target.value) }, "speed")}
           disabled={pending !== null}
-          className="border border-line-2 bg-panel-2 px-2 py-1 num text-xs text-fg-dim hover:border-line-2 focus:outline-none"
+          className="border border-line-2 bg-panel-2 px-2 py-1.5 num text-xs text-fg-dim hover:border-line-2 focus:outline-none"
         >
           {SPEEDS.map((s) => (
             <option key={s} value={s}>
@@ -75,7 +75,7 @@ export function ClockBar() {
             key={label}
             onClick={() => run({ action: "jump", days }, label)}
             disabled={pending !== null}
-            className="num border border-line-2 px-2 py-1 text-xs text-fg-dim hover:border-cyan hover:text-cyan disabled:opacity-40"
+            className="num border border-line-2 px-2 py-1.5 text-xs text-fg-dim hover:border-cyan hover:text-cyan disabled:opacity-40"
           >
             {pending === label ? "…" : label}
           </button>
@@ -105,7 +105,7 @@ export function ClockBar() {
               value={seed}
               onChange={(e) => setSeed(e.target.value)}
               placeholder="seed"
-              className="num w-24 border border-line-2 bg-panel-2 px-2 py-1 text-xs focus:border-accent focus:outline-none"
+              className="num w-24 border border-line-2 bg-panel-2 px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
             />
             <button
               onClick={async () => {
@@ -113,13 +113,13 @@ export function ClockBar() {
                 setShowReset(false);
               }}
               disabled={pending !== null}
-              className="border border-down px-2 py-1 text-xs text-down hover:bg-down/10 disabled:opacity-40"
+              className="border border-down px-2 py-1.5 text-xs text-down hover:bg-down/10 disabled:opacity-40"
             >
               {pending === "reset" ? "Rebuilding…" : "Confirm"}
             </button>
             <button
               onClick={() => setShowReset(false)}
-              className="px-1 py-1 text-xs text-fg-mute hover:text-fg"
+              className="px-1 py-1.5 text-xs text-fg-mute hover:text-fg"
             >
               ✕
             </button>
@@ -128,7 +128,7 @@ export function ClockBar() {
           <button
             onClick={() => setShowReset(true)}
             disabled={busy}
-            className="label border border-line-2 px-2 py-1 hover:border-down hover:text-down"
+            className="label border border-line-2 px-2 py-1.5 hover:border-down hover:text-down"
           >
             Reset to seed
           </button>

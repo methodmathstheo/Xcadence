@@ -49,7 +49,7 @@ export function McTool({
         />
       </div>
 
-      <div className="border border-accent/50 bg-accent/5 px-3 py-2 text-[11px] leading-relaxed text-accent">
+      <div className="border border-accent/50 bg-accent/5 px-3 py-2 text-xs leading-relaxed text-accent">
         <span className="label text-accent">Mean − median gap</span> The mean outcome is{" "}
         <span className="num">{fmtPct(r.meanMedianGap, 0)}</span> above the median. The average is
         not the typical result: the best 1% of paths carry{" "}
@@ -115,7 +115,7 @@ export function McTool({
         </Panel>
       </div>
 
-      <p className="max-w-4xl text-[11px] leading-relaxed text-fg-mute">
+      <p className="max-w-4xl text-xs leading-relaxed text-fg-mute">
         {r.paths.toLocaleString()} paths of monthly log-growth with a Pareto jump, against a
         constant monthly hazard of permanent exit. Standard deviation of terminal value is{" "}
         <span className="num">{fmtCompact(r.terminal.sd)}</span> — larger than the median outcome

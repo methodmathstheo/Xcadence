@@ -93,7 +93,7 @@ export function SurvivalTool({
       </Panel>
 
       <Panel title="Survival by tier at debut">
-        <table className="w-full text-[11px]">
+        <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-line">
               <th className="label px-3 py-1.5 text-left font-normal">Debut tier</th>
@@ -111,18 +111,18 @@ export function SurvivalTool({
           <tbody>
             {[...data.curves, data.overall].map((c) => (
               <tr key={c.group} className="border-b border-line/50">
-                <td className="px-3 py-1" style={{ color: TIER_COLOR[c.group] ?? undefined }}>
+                <td className="px-3 py-1.5" style={{ color: TIER_COLOR[c.group] ?? undefined }}>
                   {c.group}
                 </td>
-                <td className="num px-3 py-1 text-right">{c.n}</td>
-                <td className="num px-3 py-1 text-right text-down">{c.events}</td>
-                <td className="num px-3 py-1 text-right text-fg-mute">{c.censored}</td>
+                <td className="num px-3 py-1.5 text-right">{c.n}</td>
+                <td className="num px-3 py-1.5 text-right text-down">{c.events}</td>
+                <td className="num px-3 py-1.5 text-right text-fg-mute">{c.censored}</td>
                 {c.yearly.map((v, i) => (
-                  <td key={i} className="num px-3 py-1 text-right">
+                  <td key={i} className="num px-3 py-1.5 text-right">
                     {v === null ? "—" : fmtPct(v, 0)}
                   </td>
                 ))}
-                <td className="num px-3 py-1 text-right">
+                <td className="num px-3 py-1.5 text-right">
                   {c.medianSurvivalMonths === null ? "not reached" : `${c.medianSurvivalMonths}m`}
                 </td>
               </tr>
@@ -131,7 +131,7 @@ export function SurvivalTool({
         </table>
       </Panel>
 
-      <p className="max-w-4xl text-[11px] leading-relaxed text-fg-mute">
+      <p className="max-w-4xl text-xs leading-relaxed text-fg-mute">
         Fitted on the exits the engine recorded, segmented by the tier an artist debuted in rather
         than the tier they are in now — segmenting on current tier would condition on the outcome
         and flatten every curve. Artists still listed are right-censored at their present age, not

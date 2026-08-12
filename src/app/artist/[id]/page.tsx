@@ -181,7 +181,7 @@ export default function ArtistPage({ params }: { params: Promise<{ id: string }>
         </Panel>
 
         <Panel title="Derived valuation" bodyClass="p-3">
-          <dl className="space-y-1.5 text-[11px]">
+          <dl className="space-y-1.5 text-xs">
             <Row k="Present value of claim" v={fmtCompact(v.pv)} />
             <Row k="Per contract" v={fmtCredits(v.perContract)} />
             <Row k="Market price" v={fmtCredits(live)} />
@@ -197,7 +197,7 @@ export default function ArtistPage({ params }: { params: Promise<{ id: string }>
             <Row k="Value halves at" v={v.halvingRate ? fmtPct(v.halvingRate, 1) : "beyond 30%"} />
             <Row k="First 24 months" v={`${fmtPct(v.frontLoad, 0)} of PV`} />
           </dl>
-          <p className="mt-3 border-t border-line pt-2 text-[11px] leading-relaxed text-fg-mute">
+          <p className="mt-3 border-t border-line pt-2 text-xs leading-relaxed text-fg-mute">
             Built from observable fundamentals and a hazard rate inferred from tier.
             It does not use this artist&apos;s actual hazard — neither does the market.
           </p>
@@ -207,19 +207,19 @@ export default function ArtistPage({ params }: { params: Promise<{ id: string }>
           {d.trades.length === 0 ? (
             <Empty>No prints in this market yet</Empty>
           ) : (
-            <table className="w-full text-[11px]">
+            <table className="w-full text-xs">
               <tbody>
                 {d.trades.map((t) => (
                   <tr key={t.id} className="border-b border-line/50">
-                    <td className="num px-2 py-1 text-fg-mute">{fmtSimDate(t.tMs).slice(0, 6)}</td>
-                    <td className={`label px-2 py-1 ${t.side === "BUY" ? "text-up" : "text-down"}`}>
+                    <td className="num px-2 py-1.5 text-fg-mute">{fmtSimDate(t.tMs).slice(0, 6)}</td>
+                    <td className={`label px-2 py-1.5 ${t.side === "BUY" ? "text-up" : "text-down"}`}>
                       {t.side}
                     </td>
-                    <td className="num px-2 py-1 text-right">{Math.round(t.qty)}</td>
-                    <td className="num px-2 py-1 text-right text-fg">
+                    <td className="num px-2 py-1.5 text-right">{Math.round(t.qty)}</td>
+                    <td className="num px-2 py-1.5 text-right text-fg">
                       {fmtCredits(t.priceAfter)}
                     </td>
-                    <td className="max-w-0 truncate px-2 py-1 text-fg-mute">{t.counterparty}</td>
+                    <td className="max-w-0 truncate px-2 py-1.5 text-fg-mute">{t.counterparty}</td>
                   </tr>
                 ))}
               </tbody>
@@ -234,7 +234,7 @@ export default function ArtistPage({ params }: { params: Promise<{ id: string }>
         ) : (
           <ul className="divide-y divide-line/60">
             {d.events.map((e) => (
-              <li key={e.id} className="flex items-baseline gap-3 px-3 py-1 text-[11px]">
+              <li key={e.id} className="flex items-baseline gap-3 px-3 py-1.5 text-xs">
                 <span className="num shrink-0 text-fg-mute">{fmtSimDate(e.tMs)}</span>
                 <span className="label w-24 shrink-0">{EVENT_LABEL[e.kind] ?? e.kind}</span>
                 <span className="truncate text-fg-dim">{e.headline}</span>

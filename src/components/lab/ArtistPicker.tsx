@@ -25,12 +25,12 @@ export function ArtistPicker({
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder="Filter…"
-        className="w-40 border border-line-2 bg-panel-2 px-2 py-1 text-xs focus:border-accent focus:outline-none"
+        className="w-40 border border-line-2 bg-panel-2 px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
       />
       <select
         value={value ?? ""}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="num min-w-[260px] border border-line-2 bg-panel-2 px-2 py-1 text-xs focus:border-accent focus:outline-none"
+        className="num min-w-[260px] border border-line-2 bg-panel-2 px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
       >
         {list.map((a) => (
           <option key={a.id} value={a.id}>

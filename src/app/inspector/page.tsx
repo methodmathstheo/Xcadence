@@ -46,7 +46,7 @@ export default function InspectorPage() {
 
   return (
     <div className="mx-auto flex max-w-[1600px] flex-col gap-4 px-4 py-4">
-      <div className="border border-violet/40 bg-violet/5 px-3 py-2 text-[11px] leading-relaxed text-violet">
+      <div className="border border-violet/40 bg-violet/5 px-3 py-2 text-xs leading-relaxed text-violet">
         <span className="label text-violet">Ground truth</span> Everything on this page is hidden
         from the rest of the application. The bots price off observable fundamentals and a hazard
         rate inferred from tier — none of them can see <span className="num">trueQuality</span>,{" "}
@@ -102,7 +102,7 @@ export default function InspectorPage() {
               </BarChart>
             </ResponsiveContainer>
           </div>
-          <p className="px-3 pb-2 text-[11px] leading-relaxed text-fg-mute">
+          <p className="px-3 pb-2 text-xs leading-relaxed text-fg-mute">
             Decile 1 is the lowest hidden quality. Bars above zero mean the market is paying more
             than the artist is genuinely worth. A market that could see the truth would sit flat
             at zero; the shape here is what the tier-based hazard estimate gets wrong, since it
@@ -114,7 +114,7 @@ export default function InspectorPage() {
         </Panel>
 
         <Panel title="Bot P&L by strategy">
-          <table className="w-full text-[11px]">
+          <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-line">
                 <th className="label px-3 py-1.5 text-left font-normal">Strategy</th>
@@ -128,21 +128,21 @@ export default function InspectorPage() {
             <tbody>
               {d.bots.map((b) => (
                 <tr key={b.strategy} className="border-b border-line/50">
-                  <td className="px-3 py-1 text-fg">{b.strategy}</td>
-                  <td className="num px-3 py-1 text-right text-fg-mute">{b.bots}</td>
-                  <td className="num px-3 py-1 text-right">{fmtCompact(b.equity)}</td>
-                  <td className={`num px-3 py-1 text-right ${toneClass(b.pnl)}`}>
+                  <td className="px-3 py-1.5 text-fg">{b.strategy}</td>
+                  <td className="num px-3 py-1.5 text-right text-fg-mute">{b.bots}</td>
+                  <td className="num px-3 py-1.5 text-right">{fmtCompact(b.equity)}</td>
+                  <td className={`num px-3 py-1.5 text-right ${toneClass(b.pnl)}`}>
                     {fmtCompact(b.pnl)}
                   </td>
-                  <td className={`num px-3 py-1 text-right ${toneClass(b.ret)}`}>
+                  <td className={`num px-3 py-1.5 text-right ${toneClass(b.ret)}`}>
                     {fmtSignedPct(b.ret, 1)}
                   </td>
-                  <td className="num px-3 py-1 text-right text-fg-mute">{b.positions}</td>
+                  <td className="num px-3 py-1.5 text-right text-fg-mute">{b.positions}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <p className="px-3 py-2 text-[11px] leading-relaxed text-fg-mute">
+          <p className="px-3 py-2 text-xs leading-relaxed text-fg-mute">
             If the fundamental bots are not ahead of the noise bots over a long run, the market is
             not rewarding information — which is itself a finding about how much signal the public
             valuation carries.
@@ -155,7 +155,7 @@ export default function InspectorPage() {
         right={<span className="label">hidden parameters exposed</span>}
         bodyClass="max-h-[560px] overflow-auto"
       >
-        <table className="w-full text-[11px]">
+        <table className="w-full text-xs">
           <thead className="sticky top-0 bg-panel">
             <tr className="border-b border-line">
               <Th>Artist</Th>
@@ -175,24 +175,24 @@ export default function InspectorPage() {
           <tbody>
             {d.artists.map((a) => (
               <tr key={a.id} className="border-b border-line/50 hover:bg-panel-2">
-                <td className="max-w-0 truncate px-2 py-1">
+                <td className="max-w-0 truncate px-2 py-1.5">
                   <ArtistLink id={a.id} name={a.name} />
                 </td>
-                <td className="px-2 py-1"><TierBadge tier={a.tier} /></td>
-                <td className="num px-2 py-1 text-right">{fmtListeners(a.listeners)}</td>
-                <td className="num px-2 py-1 text-right text-fg">{fmtCredits(a.price)}</td>
-                <td className="num px-2 py-1 text-right text-fg-mute">{fmtCredits(a.naiveValue)}</td>
-                <td className="num px-2 py-1 text-right text-violet">{fmtCredits(a.trueValue)}</td>
-                <td className={`num px-2 py-1 text-right ${toneClass(-a.mispricing)}`}>
+                <td className="px-2 py-1.5"><TierBadge tier={a.tier} /></td>
+                <td className="num px-2 py-1.5 text-right">{fmtListeners(a.listeners)}</td>
+                <td className="num px-2 py-1.5 text-right text-fg">{fmtCredits(a.price)}</td>
+                <td className="num px-2 py-1.5 text-right text-fg-mute">{fmtCredits(a.naiveValue)}</td>
+                <td className="num px-2 py-1.5 text-right text-violet">{fmtCredits(a.trueValue)}</td>
+                <td className={`num px-2 py-1.5 text-right ${toneClass(-a.mispricing)}`}>
                   {fmtSignedPct(a.mispricing, 0)}
                 </td>
-                <td className="num px-2 py-1 text-right text-violet">{a.trueQuality.toFixed(3)}</td>
-                <td className="num px-2 py-1 text-right text-violet">{fmtPct(a.hazardRate, 2)}</td>
-                <td className="num px-2 py-1 text-right text-fg-mute">{fmtPct(a.hazardAssumed, 2)}</td>
-                <td className={`num px-2 py-1 text-right ${toneClass(a.hazardError)}`}>
+                <td className="num px-2 py-1.5 text-right text-violet">{a.trueQuality.toFixed(3)}</td>
+                <td className="num px-2 py-1.5 text-right text-violet">{fmtPct(a.hazardRate, 2)}</td>
+                <td className="num px-2 py-1.5 text-right text-fg-mute">{fmtPct(a.hazardAssumed, 2)}</td>
+                <td className={`num px-2 py-1.5 text-right ${toneClass(a.hazardError)}`}>
                   {fmtSignedPct(a.hazardError, 2)}
                 </td>
-                <td className={`num px-2 py-1 text-right ${a.stretch > 1.5 ? "text-down" : "text-fg-mute"}`}>
+                <td className={`num px-2 py-1.5 text-right ${a.stretch > 1.5 ? "text-down" : "text-fg-mute"}`}>
                   {a.stretch.toFixed(2)}×
                 </td>
               </tr>
@@ -201,7 +201,7 @@ export default function InspectorPage() {
         </table>
       </Panel>
 
-      <p className="max-w-4xl text-[11px] leading-relaxed text-fg-mute">
+      <p className="max-w-4xl text-xs leading-relaxed text-fg-mute">
         <span className="text-fg-dim">Stretch</span> is current listeners divided by the level the
         artist&apos;s hidden quality supports. Above 1 means they are running ahead of themselves
         and mean reversion is working against them; the market cannot see this and will often be

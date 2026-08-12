@@ -79,7 +79,7 @@ function IndexChip({ label, value }: { label: string; value: number }) {
     <span className="flex items-baseline gap-1.5 whitespace-nowrap">
       <span className="label">{label}</span>
       <span className="num text-fg">{fmtCredits(value)}</span>
-      <span className={`num text-[11px] ${off > 0 ? "text-up" : off < 0 ? "text-down" : "text-fg-mute"}`}>
+      <span className={`num text-xs ${off > 0 ? "text-up" : off < 0 ? "text-down" : "text-fg-mute"}`}>
         {fmtSignedPct(off / 100, 2)}
       </span>
     </span>

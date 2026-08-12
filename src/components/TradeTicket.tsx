@@ -111,7 +111,7 @@ export function TradeTicket({
         <span className="num text-sm text-fg">{fmtCredits(live)}</span>
       </div>
 
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px]">
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
         <Row k="Monthly listeners" v={fmtListeners(ctx.artist.listeners)} />
         <Row k="Monthly royalty" v={fmtCompact(ctx.artist.monthlyRoyalty)} />
         <Row k="DCF per contract" v={fmtCredits(ctx.fairValue)} />
@@ -155,7 +155,7 @@ export function TradeTicket({
             <button
               key={n}
               onClick={() => setSize(String(n))}
-              className="num flex-1 border border-line-2 py-0.5 text-[11px] text-fg-mute hover:border-accent hover:text-accent"
+              className="num flex-1 border border-line-2 py-1.5 text-xs text-fg-mute hover:border-accent hover:text-accent"
             >
               {n}
             </button>
@@ -168,7 +168,7 @@ export function TradeTicket({
                 ),
               )
             }
-            className="label flex-1 border border-line-2 py-0.5 hover:border-accent hover:text-accent"
+            className="label flex-1 border border-line-2 py-1.5 hover:border-accent hover:text-accent"
           >
             Max
           </button>
@@ -178,7 +178,7 @@ export function TradeTicket({
       {preview && (
         <div className="border border-line-2 bg-panel-2 p-2">
           <div className="label mb-1">Before you confirm</div>
-          <dl className="space-y-1 text-[11px]">
+          <dl className="space-y-1 text-xs">
             <Row k="Average fill" v={fmtCredits(Math.abs(preview.avgPrice))} />
             <Row
               k={side === "BUY" ? "Credits out" : "Credits in"}
@@ -197,7 +197,7 @@ export function TradeTicket({
             />
           </dl>
           {Math.abs(preview.slippage) > 0.03 && (
-            <p className="mt-1.5 text-[11px] leading-snug text-down">
+            <p className="mt-1.5 text-xs leading-snug text-down">
               This size moves the quote by {fmtSignedPct(preview.impact / preview.priceBefore, 1)}.
               You are paying for most of that move yourself.
             </p>
@@ -222,10 +222,10 @@ export function TradeTicket({
       </button>
 
       {status.kind === "done" && (
-        <p className="text-[11px] text-up">Filled · {status.text}</p>
+        <p className="text-xs text-up">Filled · {status.text}</p>
       )}
       {status.kind === "error" && (
-        <p className="text-[11px] text-down">Rejected · {status.text}</p>
+        <p className="text-xs text-down">Rejected · {status.text}</p>
       )}
     </div>
   );
@@ -242,13 +242,13 @@ function Row({ k, v, tone = "" }: { k: string; v: string; tone?: string }) {
 
 export function LmsrExplainer({ b, vMax, subsidy }: { b: number; vMax: number; subsidy: number }) {
   return (
-    <div className="space-y-2 p-3 text-[11px] leading-relaxed text-fg-dim">
+    <div className="space-y-2 p-3 text-xs leading-relaxed text-fg-dim">
       <p>
         Every artist has its own <span className="text-fg">logarithmic market scoring rule</span>{" "}
         maker rather than an order book. Price comes from one number, the net contracts the
         market is holding:
       </p>
-      <pre className="num overflow-x-auto border border-line-2 bg-panel-2 p-2 text-[11px] text-fg">
+      <pre className="num overflow-x-auto border border-line-2 bg-panel-2 p-2 text-xs text-fg">
 {`price(q) = vMax · σ(q / b)
 cost     = C(q + Δ) − C(q)
 C(q)     = vMax · b · ln(1 + e^(q/b))`}

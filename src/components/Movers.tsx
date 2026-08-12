@@ -46,10 +46,10 @@ function List({
 }) {
   return (
     <div className="bg-panel">
-      <div className="label border-b border-line px-3 py-1">{title}</div>
+      <div className="label border-b border-line px-3 py-1.5">{title}</div>
       <ul>
         {rows.map((r) => (
-          <li key={r.id} className="flex items-baseline gap-2 px-3 py-1 text-[11px]">
+          <li key={r.id} className="flex items-baseline gap-2 px-3 py-1.5 text-xs">
             <ArtistLink id={r.id} name={r.name} className="truncate text-fg-dim" />
             <span className="num ml-auto shrink-0 text-fg-mute">{fmtCredits(r.price)}</span>
             <span className={`num w-16 shrink-0 text-right ${tone}`}>

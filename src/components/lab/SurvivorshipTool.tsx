@@ -88,18 +88,18 @@ export function SurvivorshipTool({
             <div className="num text-2xl text-down">
               {data.overstatementMean === null ? "—" : fmtSignedPct(data.overstatementMean, 1)}
             </div>
-            <p className="mt-1 text-[11px] text-fg-mute">on mean return</p>
+            <p className="mt-1 text-xs text-fg-mute">on mean return</p>
             <div className="num mt-3 text-lg text-down">
               {data.overstatementMedian === null ? "—" : fmtSignedPct(data.overstatementMedian, 1)}
             </div>
-            <p className="mt-1 text-[11px] text-fg-mute">on median return</p>
+            <p className="mt-1 text-xs text-fg-mute">on median return</p>
             {data.overstatementMedian === null && (
-              <p className="mt-1 text-[10px] leading-snug text-fg-mute">
+              <p className="mt-1 text-[11px] leading-snug text-fg-mute">
                 Undefined rather than infinite: the full-cohort median is a total loss, so there
                 is no finite ratio between the two. The typical name in this cohort went to zero.
               </p>
             )}
-            <div className="mt-3 border-t border-line pt-2 text-[11px] text-fg-mute">
+            <div className="mt-3 border-t border-line pt-2 text-xs text-fg-mute">
               Annualised: survivors {fmtSignedPct(data.cagrSurvivors)} vs full cohort{" "}
               {fmtSignedPct(data.cagrFull)}
             </div>
@@ -107,7 +107,7 @@ export function SurvivorshipTool({
         </div>
       </Panel>
 
-      <div className="border border-line bg-panel-2 px-3 py-2.5 text-[11px] leading-relaxed text-fg-dim">
+      <div className="border border-line bg-panel-2 px-3 py-2.5 text-xs leading-relaxed text-fg-dim">
         <span className="label text-fg">Why the left column is what naive analysis produces</span>
         <p className="mt-1.5">
           The obvious way to study returns in this market is to pull the list of artists trading
@@ -146,7 +146,7 @@ function Column({ title, tone, s }: { title: string; tone: string; s: CohortStat
   return (
     <div className="bg-panel p-3">
       <div className={`label mb-2 ${tone}`}>{title}</div>
-      <dl className="space-y-1 text-[11px]">
+      <dl className="space-y-1 text-xs">
         {[
           ["Names", String(s.n)],
           ["Mean", fmtSignedPct(s.mean)],
@@ -174,7 +174,7 @@ function Rows({
   return (
     <ul>
       {rows.map((m) => (
-        <li key={m.artistId} className="flex items-baseline gap-2 border-b border-line/50 px-3 py-1 text-[11px]">
+        <li key={m.artistId} className="flex items-baseline gap-2 border-b border-line/50 px-3 py-1.5 text-xs">
           <ArtistLink id={m.artistId} name={m.name} className="truncate text-fg-dim" />
           {!m.survived && <span className="label shrink-0 text-down">delisted</span>}
           <span className={`num ml-auto shrink-0 ${toneClass(m.ret)}`}>{fmtSignedPct(m.ret)}</span>

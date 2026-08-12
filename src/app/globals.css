@@ -4,11 +4,11 @@
   --color-ink: #07080a;
   --color-panel: #0d0f13;
   --color-panel-2: #12151b;
-  --color-line: #1b1f27;
-  --color-line-2: #262b35;
-  --color-fg: #d8dce4;
-  --color-fg-dim: #98a1b0;
-  --color-fg-mute: #67707e;
+  --color-line: #1f242d;
+  --color-line-2: #2c3340;
+  --color-fg: #e6e9ef;
+  --color-fg-dim: #aab3c0;
+  --color-fg-mute: #808b99;
   --color-up: #3ddc97;
   --color-down: #ff5d5d;
   --color-accent: #f0b429;
@@ -27,7 +27,10 @@ body {
 
 body {
   font-family: var(--font-sans);
-  font-size: 13px;
+  /* Bumped from 13px. This is a dense interface and the old size was doing it
+     no favours; every relative size below rides on this one. */
+  font-size: 14px;
+  line-height: 1.55;
   letter-spacing: -0.01em;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -49,9 +52,9 @@ h1, h2, h3 {
 
 .label {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 500;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--color-fg-mute);
 }

@@ -3,6 +3,10 @@ import { prisma } from "@/lib/db";
 import { engine, portfolioValue } from "@/lib/engine/engine";
 import { markPosition } from "@/lib/engine/trading";
 import { CONCENTRATION_LIMIT } from "@/lib/sim/constants";
+import { dcf, estimateInputs } from "@/lib/quant/dcf";
+import { toReturns } from "@/lib/quant/cohort";
+import { analysePortfolio, MIN_HISTORY, type AssetInput } from "@/lib/quant/portfolio";
+import { monthKey } from "@/lib/sim/time";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -55,8 +59,66 @@ export async function GET() {
     }),
   ]);
 
+  // ---- mean-variance analytics over the book and a candidate set
+  const heldIds = holdings.map((h) => h.artistId);
+  const candidateIds = w.order
+    .filter((id) => {
+      const a = w.artists.get(id)!;
+      return a.active && a.price > 0 && !heldIds.includes(id);
+    })
+    // A shortlist, not the whole universe: the covariance work is quadratic
+    // and 400 names would be 80,000 pairs for no extra insight.
+    .slice(0, 90);
+  const analysisIds = [...heldIds, ...candidateIds];
+
+  const points = await prisma.pricePoint.findMany({
+    where: { artistId: { in: analysisIds } },
+    orderBy: { tMs: "asc" },
+    select: { artistId: true, tMs: true, price: true },
+  });
+  // One close per simulated month; PricePoint also carries a row per trade.
+  const monthly = new Map<number, Map<number, number>>();
+  for (const p of points) {
+    const m = monthly.get(p.artistId) ?? new Map<number, number>();
+    m.set(monthKey(p.tMs), p.price);
+    monthly.set(p.artistId, m);
+  }
+
+  const assets: AssetInput[] = [];
+  for (const id of analysisIds) {
+    const a = w.artists.get(id);
+    if (!a) continue;
+    {
+      const closes = [...(monthly.get(id) ?? new Map<number, number>())]
+        .sort((x, y) => x[0] - y[0])
+        .map(([, v]) => v);
+      assets.push({
+        artistId: id,
+        name: a.name,
+        tier: a.tier,
+        price: a.price,
+        fairValue: dcf(estimateInputs(a)).pvPerContract,
+        returns: toReturns(closes),
+        qty: w.positions.get(id)?.qty ?? 0,
+      });
+    }
+  }
+
+  const analysis = analysePortfolio(assets, w.account.cash, { seed: w.seed });
+
+  // ---- growth: the book against the equal-weighted index, rebased to 100
+  const indexPoints = await prisma.indexPoint.findMany({
+    where: { runId: w.runId },
+    orderBy: { tMs: "asc" },
+    take: 800,
+    select: { tMs: true, equal: true },
+  });
+
   return NextResponse.json({
     simMs: w.simMs,
+    analysis,
+    benchmark: indexPoints,
+    historyReady: assets.some((a) => a.returns.length >= MIN_HISTORY),
     account: {
       cash: w.account.cash,
       startingCash: w.account.startingCash,

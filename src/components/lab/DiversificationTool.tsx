@@ -63,7 +63,7 @@ export function DiversificationTool({
             ))}
             {data.matrix.map((row, i) => (
               <div key={`r${i}`} className="contents">
-                <div className="num truncate pr-1 text-[10px] text-fg-mute" title={data.labels[i].name}>
+                <div className="num truncate pr-1 text-[11px] text-fg-mute" title={data.labels[i].name}>
                   {data.labels[i].name.slice(0, 14)}
                 </div>
                 {row.map((c, j) => (
@@ -77,7 +77,7 @@ export function DiversificationTool({
               </div>
             ))}
           </div>
-          <p className="mt-2 text-[10px] text-fg-mute">
+          <p className="mt-2 text-[11px] text-fg-mute">
             Red is positive correlation, blue negative. Monthly contract returns.
           </p>
         </Panel>
@@ -118,7 +118,7 @@ export function DiversificationTool({
         </Panel>
       </div>
 
-      <p className="max-w-4xl text-[11px] leading-relaxed text-fg-mute">
+      <p className="max-w-4xl text-xs leading-relaxed text-fg-mute">
         An equally weighted book of k names has variance{" "}
         <span className="num text-fg-dim">v/k + (1 − 1/k)·ρ·v</span>. The first term is
         idiosyncratic and disappears as you add names; the second does not, because every artist

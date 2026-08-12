@@ -118,7 +118,7 @@ export function DcfTool({
         </Panel>
 
         <Panel title="Discounted cash flow" bodyClass="max-h-[280px] overflow-auto">
-          <table className="w-full text-[11px]">
+          <table className="w-full text-xs">
             <thead className="sticky top-0 bg-panel">
               <tr className="border-b border-line">
                 <th className="label px-2 py-1.5 text-left font-normal">Month</th>
@@ -131,11 +131,11 @@ export function DcfTool({
             <tbody>
               {result.rows.map((r) => (
                 <tr key={r.month} className="border-b border-line/50">
-                  <td className="num px-2 py-0.5 text-fg-mute">{r.month}</td>
-                  <td className="num px-2 py-0.5 text-right text-fg-mute">{fmtPct(r.survival, 0)}</td>
-                  <td className="num px-2 py-0.5 text-right">{fmtCompact(r.expected)}</td>
-                  <td className="num px-2 py-0.5 text-right">{fmtCompact(r.discounted)}</td>
-                  <td className="num px-2 py-0.5 text-right text-fg">{fmtCompact(r.cumulative)}</td>
+                  <td className="num px-2 py-1.5 text-fg-mute">{r.month}</td>
+                  <td className="num px-2 py-1.5 text-right text-fg-mute">{fmtPct(r.survival, 0)}</td>
+                  <td className="num px-2 py-1.5 text-right">{fmtCompact(r.expected)}</td>
+                  <td className="num px-2 py-1.5 text-right">{fmtCompact(r.discounted)}</td>
+                  <td className="num px-2 py-1.5 text-right text-fg">{fmtCompact(r.cumulative)}</td>
                 </tr>
               ))}
             </tbody>
@@ -143,7 +143,7 @@ export function DcfTool({
         </Panel>
       </div>
 
-      <p className="max-w-4xl text-[11px] leading-relaxed text-fg-mute">
+      <p className="max-w-4xl text-xs leading-relaxed text-fg-mute">
         Growth is assumed at {fmtSignedPct(result.inputs.growthAnnual)} a year, decaying by half
         every 30 months, against a {fmtPct(result.inputs.hazardMonthly, 2)} monthly probability of
         the artist ceasing to be commercially active — inferred from tier, not from anything

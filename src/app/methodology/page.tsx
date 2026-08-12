@@ -331,7 +331,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function Pre({ children }: { children: React.ReactNode }) {
   return (
-    <pre className="num overflow-x-auto border border-line bg-panel px-3 py-2 text-[11px] text-fg">
+    <pre className="num overflow-x-auto border border-line bg-panel px-3 py-2 text-xs text-fg">
       {children}
     </pre>
   );

@@ -87,14 +87,14 @@ export default function OfferingsPage() {
         />
       </div>
 
-      {msg && <div className="border border-line bg-panel-2 px-3 py-1.5 text-[11px] text-fg-dim">{msg}</div>}
+      {msg && <div className="border border-line bg-panel-2 px-3 py-1.5 text-xs text-fg-dim">{msg}</div>}
 
       <Panel title="Open offerings" right={<span className="label">primary market</span>}>
         {d.open.length === 0 ? (
           <Empty>No offerings open. New ones list over simulated time.</Empty>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-[11px]">
+            <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-line">
                   <Th>Artist</Th>
@@ -114,24 +114,24 @@ export default function OfferingsPage() {
               <tbody>
                 {d.open.map((o) => (
                   <tr key={o.id} className="border-b border-line/50 hover:bg-panel-2">
-                    <td className="max-w-0 truncate px-2 py-1">
+                    <td className="max-w-0 truncate px-2 py-1.5">
                       <ArtistLink id={o.artistId} name={o.artistName} />
                     </td>
-                    <td className="px-2 py-1"><TierBadge tier={o.tier} /></td>
-                    <td className="num px-2 py-1 text-right">{fmtListeners(o.listeners)}</td>
-                    <td className="num px-2 py-1 text-right">{fmtCompact(o.monthlyRoyalty)}</td>
-                    <td className="num px-2 py-1 text-right">{fmtPct(o.pctRoyalty, 1)}</td>
-                    <td className="num px-2 py-1 text-right">{o.termMonths}m</td>
-                    <td className="num px-2 py-1 text-right text-fg">{fmtCompact(o.askCredits)}</td>
-                    <td className="num px-2 py-1 text-right text-fg-mute">{fmtCompact(o.modelValue)}</td>
-                    <td className={`num px-2 py-1 text-right ${o.priceToModel > 1 ? "text-down" : "text-up"}`}>
+                    <td className="px-2 py-1.5"><TierBadge tier={o.tier} /></td>
+                    <td className="num px-2 py-1.5 text-right">{fmtListeners(o.listeners)}</td>
+                    <td className="num px-2 py-1.5 text-right">{fmtCompact(o.monthlyRoyalty)}</td>
+                    <td className="num px-2 py-1.5 text-right">{fmtPct(o.pctRoyalty, 1)}</td>
+                    <td className="num px-2 py-1.5 text-right">{o.termMonths}m</td>
+                    <td className="num px-2 py-1.5 text-right text-fg">{fmtCompact(o.askCredits)}</td>
+                    <td className="num px-2 py-1.5 text-right text-fg-mute">{fmtCompact(o.modelValue)}</td>
+                    <td className={`num px-2 py-1.5 text-right ${o.priceToModel > 1 ? "text-down" : "text-up"}`}>
                       {o.priceToModel.toFixed(2)}×
                     </td>
-                    <td className="num px-2 py-1 text-right text-fg-mute">
+                    <td className="num px-2 py-1.5 text-right text-fg-mute">
                       {fmtPct(o.askCredits > 0 ? o.filled / o.askCredits : 0, 0)}
                     </td>
-                    <td className="num px-2 py-1 text-fg-mute">{fmtSimDate(o.expiresMs)}</td>
-                    <td className="px-2 py-1 text-right">
+                    <td className="num px-2 py-1.5 text-fg-mute">{fmtSimDate(o.expiresMs)}</td>
+                    <td className="px-2 py-1.5 text-right">
                       <span className="flex items-center justify-end gap-1">
                         <input
                           value={amount[o.id] ?? ""}
@@ -139,11 +139,11 @@ export default function OfferingsPage() {
                             setAmount((a) => ({ ...a, [o.id]: e.target.value.replace(/[^\d.]/g, "") }))
                           }
                           placeholder={fmtCompact(Math.min(o.remaining, 5000))}
-                          className="num w-20 border border-line-2 bg-panel-2 px-1 py-0.5 text-right focus:border-accent focus:outline-none"
+                          className="num w-20 border border-line-2 bg-panel-2 px-1 py-1.5 text-right focus:border-accent focus:outline-none"
                         />
                         <button
                           onClick={() => allocate(o.id)}
-                          className="label border border-line-2 px-1.5 py-0.5 hover:border-accent hover:text-accent"
+                          className="label border border-line-2 px-1.5 py-1.5 hover:border-accent hover:text-accent"
                         >
                           Take
                         </button>
@@ -162,7 +162,7 @@ export default function OfferingsPage() {
           <Empty>No offerings taken yet</Empty>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-[11px]">
+            <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-line">
                   <Th>Artist</Th>
@@ -179,28 +179,28 @@ export default function OfferingsPage() {
               <tbody>
                 {d.positions.map((p) => (
                   <tr key={p.id} className="border-b border-line/50">
-                    <td className="max-w-0 truncate px-2 py-1">
+                    <td className="max-w-0 truncate px-2 py-1.5">
                       <ArtistLink id={p.artistId} name={p.artistName} />
                     </td>
-                    <td className="num px-2 py-1 text-right">{fmtCompact(p.credits)}</td>
-                    <td className="num px-2 py-1 text-right">{fmtPct(p.sharePct, 3)}</td>
-                    <td className="num px-2 py-1 text-right text-fg">{fmtCompact(p.royalties)}</td>
-                    <td className={`num px-2 py-1 text-right ${toneClass(p.ret)}`}>
+                    <td className="num px-2 py-1.5 text-right">{fmtCompact(p.credits)}</td>
+                    <td className="num px-2 py-1.5 text-right">{fmtPct(p.sharePct, 3)}</td>
+                    <td className="num px-2 py-1.5 text-right text-fg">{fmtCompact(p.royalties)}</td>
+                    <td className={`num px-2 py-1.5 text-right ${toneClass(p.ret)}`}>
                       {p.multiple.toFixed(2)}×
                     </td>
-                    <td className={`num px-2 py-1 text-right ${p.irr === null ? "text-fg-mute" : toneClass(p.irr)}`}>
+                    <td className={`num px-2 py-1.5 text-right ${p.irr === null ? "text-fg-mute" : toneClass(p.irr)}`}>
                       {p.irr === null ? "—" : fmtSignedPct(p.irr)}
                     </td>
-                    <td className="num px-2 py-1 text-right text-fg-mute">
+                    <td className="num px-2 py-1.5 text-right text-fg-mute">
                       {p.monthsPaid}/{p.termMonths}
                     </td>
-                    <td className="num px-2 py-1 text-right">
+                    <td className="num px-2 py-1.5 text-right">
                       {fmtCompact(p.projectedTotal)}{" "}
                       <span className={toneClass(p.projectedReturn)}>
                         ({fmtSignedPct(p.projectedReturn, 0)})
                       </span>
                     </td>
-                    <td className="px-2 py-1">
+                    <td className="px-2 py-1.5">
                       {p.active ? (
                         <span className="label text-up">accruing</span>
                       ) : !p.artistActive ? (
@@ -223,7 +223,7 @@ export default function OfferingsPage() {
             <Empty>Take an offering to start the cohort</Empty>
           ) : (
             <div className="p-3">
-              <dl className="space-y-1.5 text-[11px]">
+              <dl className="space-y-1.5 text-xs">
                 <Row k="Positions" v={String(c.stats.n)} />
                 <Row k="Mean return" v={fmtSignedPct(c.stats.mean)} tone={toneClass(c.stats.mean)} />
                 <Row k="Median return" v={fmtSignedPct(c.stats.median)} tone={toneClass(c.stats.median)} />
@@ -233,7 +233,7 @@ export default function OfferingsPage() {
                 <Row k="Top 5% share of value" v={fmtPct(c.stats.top5Share, 0)} />
               </dl>
               {skewVisible && (
-                <p className="mt-3 border-t border-line pt-2 text-[11px] leading-relaxed text-fg-mute">
+                <p className="mt-3 border-t border-line pt-2 text-xs leading-relaxed text-fg-mute">
                   Mean {fmtSignedPct(c.stats.mean)} against median{" "}
                   {fmtSignedPct(c.stats.median)}. Both are shown because averaging this
                   distribution hides it: the mean is pulled up by whichever few positions
@@ -275,7 +275,7 @@ export default function OfferingsPage() {
         </Panel>
       </div>
 
-      <p className="max-w-4xl text-[11px] leading-relaxed text-fg-mute">
+      <p className="max-w-4xl text-xs leading-relaxed text-fg-mute">
         Offerings are priced off the same tier-based hazard estimate the rest of the venue uses,
         while each artist&apos;s real hazard is drawn individually. Artists who are worse than
         they look are therefore systematically willing to sell at the asking price, which is why

@@ -42,7 +42,7 @@ export function Stat({
     <div className="bg-panel px-3 py-2">
       <div className="label">{label}</div>
       <div className={`num mt-0.5 text-sm ${tone || "text-fg"}`}>{value}</div>
-      {sub && <div className="mt-0.5 text-[11px] text-fg-mute">{sub}</div>}
+      {sub && <div className="mt-0.5 text-xs text-fg-mute">{sub}</div>}
     </div>
   );
 }

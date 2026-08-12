@@ -30,7 +30,7 @@ export function Tape({ limit = 40 }: { limit?: number }) {
   return (
     <ul className="divide-y divide-line/60">
       {rows.map((e) => (
-        <li key={e.id} className="flex items-baseline gap-2 px-3 py-1 text-[11px]">
+        <li key={e.id} className="flex items-baseline gap-2 px-3 py-1.5 text-xs">
           <span className="num shrink-0 text-fg-mute">{fmtSimDate(e.tMs).slice(0, 6)}</span>
           {e.kind === "trade" ? (
             <>

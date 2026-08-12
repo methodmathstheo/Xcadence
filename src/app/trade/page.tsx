@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useMarket } from "@/lib/client/useMarket";
 import { TradeTicket, LmsrExplainer } from "@/components/TradeTicket";
-import { PortfolioPanels, type PortfolioData } from "@/components/Portfolio";
+import { PositionsStrip, type PortfolioData } from "@/components/Portfolio";
 import { Tape } from "@/components/Tape";
 import { Panel, TierBadge } from "@/components/ui";
 import { fmtCredits, fmtSignedPct, toneClass } from "@/lib/format";
@@ -69,7 +69,7 @@ function TradeScreen() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search artists…"
-              className="w-full border border-line-2 bg-panel-2 px-2 py-1 text-xs focus:border-accent focus:outline-none"
+              className="w-full border border-line-2 bg-panel-2 px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
             />
           </div>
           <ul className="min-h-0 flex-1 overflow-auto">
@@ -80,7 +80,7 @@ function TradeScreen() {
                 <li key={a.id}>
                   <button
                     onClick={() => setSelected(a.id)}
-                    className={`flex w-full items-baseline gap-2 px-2 py-1 text-left text-[11px] hover:bg-panel-2 ${
+                    className={`flex w-full items-baseline gap-2 px-2 py-1.5 text-left text-xs hover:bg-panel-2 ${
                       selected === a.id ? "bg-panel-2 text-fg" : "text-fg-dim"
                     }`}
                   >
@@ -118,9 +118,9 @@ function TradeScreen() {
       </div>
 
       {pf ? (
-        <PortfolioPanels data={pf} onPick={setSelected} />
+        <PositionsStrip data={pf} onPick={setSelected} />
       ) : (
-        <div className="label px-3 py-8 text-center">Loading portfolio…</div>
+        <div className="label px-3 py-8 text-center">Loading positions…</div>
       )}
     </div>
   );

@@ -36,7 +36,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <ClockBar />
         <TickerBar />
         <main className="flex-1">{children}</main>
-        <footer className="border-t border-line px-4 py-3 text-[11px] text-fg-mute">
+        <footer className="border-t border-line px-4 py-3 text-xs text-fg-mute">
           Virtual currency sandbox. Not a financial product.
         </footer>
       </body>
