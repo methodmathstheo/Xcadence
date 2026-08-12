@@ -19,46 +19,56 @@ export default function MethodologyPage() {
         <p>
           <Strong>Every number in this application is generated.</Strong> Listener counts, growth
           rates, royalty figures, prices, and the hidden quality and hazard parameters behind them
-          are all output from a seeded random number generator. No external data source is read,
-          and no real catalogue, chart, contract or streaming service is represented.
+          are output from a seeded random number generator. No market figure here was measured.
         </p>
         <p>
-          <Strong>The names are a mix.</Strong> The top hundred listings carry the names of real US
-          rap and R&amp;B artists; every other listing, and every artist that debuts during a run,
-          is invented from word lists. The real names are labels and nothing more — no figure
-          attached to them was measured, estimated or derived from anything that person has
-          actually done, and their position in the roster is not a ranking.
+          <Strong>Every artist is real, and so is everything factual about them.</Strong> The
+          exchange lists {"{"}253{"}"} real US rap and R&amp;B acts. Their photographs and
+          biographies come from Wikipedia, their identities and catalogues from MusicBrainz, and
+          their cover art from the Cover Art Archive — all open sources, fetched live and cached.
+          There are no invented artists on the exchange and no invented releases anywhere in it.
         </p>
         <p>
-          <Strong>Photographs and discographies come from Spotify, or from nowhere.</Strong> When
-          Spotify credentials are configured, roster artists show their real profile photo,
-          follower and popularity figures, and their real release list, fetched from the Spotify
-          Web API and cached. Generated artists get a monogram and a release history invented
-          alongside the rest of them. No real artist is ever given a fabricated catalogue: an
-          invented album title attached to a real person reads as a factual claim, and nothing in
-          this simulation is entitled to make one. Without credentials the roster simply shows no
-          discography.
+          Where a lookup fails, the field stays empty and the page says so. A biography or a
+          discography is not something this application will write for a real person, so the
+          alternative to real data is no data.
         </p>
         <p>
-          Nothing fetched from Spotify feeds the market. Prices, listeners, royalties, growth,
-          hazard and every hidden parameter are simulated. The follower and popularity numbers are
-          displayed on the artist page and used nowhere else — no valuation, no bot, and no
-          ranking reads them.
+          <Strong>Nothing real feeds the market and nothing simulated describes the artist.</Strong>{" "}
+          The two are kept strictly apart. No valuation, bot, price or ranking reads anything
+          fetched from Wikipedia or MusicBrainz; equally, the listener counts, royalties, tier,
+          volatility and rank shown against a name are simulation output and correspond to nothing
+          that person has done. Artist pages separate the two under their own headings for exactly
+          this reason.
         </p>
         <p>
           This matters most where the simulation is unflattering. The engine assigns every listing
           a hidden probability of ceasing to be commercially active, and generates events like{" "}
           <em>dropped by label</em>, <em>faded out</em> and <em>no longer commercially active</em>.
-          When one of those lands on a real name it is a draw from a random number generator,
-          carries no information about that person, and should not be read as one. Real names are
-          assigned to the highest-quality artists in the universe specifically so this is the
-          uncommon case, but the same process applies to every listing and nothing is exempt.
+          When one lands on a real name it is a draw from a random number generator, carries no
+          information about that person, and should not be read as one.
         </p>
         <p>
           A run is fully determined by its seed. The same seed rebuilds the same universe, the same
           36 months of history and the same forward path — every stochastic decision draws from a
           stream derived from <Code>(seed, label, index)</Code>, so the order in which artists are
           processed never changes the numbers any one of them gets.
+        </p>
+      </Section>
+
+      <Section title="A closed cohort">
+        <p>
+          Because every listing must be a real artist, nothing new can debut: the only way to add a
+          name would be to invent one. The exchange is therefore a{" "}
+          <Strong>closed cohort</Strong> that can only shrink as artists exit.
+        </p>
+        <p>
+          This costs something real and it is worth stating rather than hiding. The survival and
+          survivorship tools were built around a universe with continuous entry, where fresh
+          cohorts keep arriving and the exited pile up behind them. With entry disabled, a long
+          fast-forward slowly drains the exchange, and both tools work from a shrinking sample.
+          Hazard rates are calibrated low for an all-established roster, so the drain is slow — but
+          it does not stop, and over enough simulated decades the venue empties.
         </p>
       </Section>
 

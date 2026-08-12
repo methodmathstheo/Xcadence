@@ -111,10 +111,16 @@ model ArtistProfile {
   imageUrl    String?
   followers   Int?
   popularity  Int?
+  /// MusicBrainz artist id, and the Wikipedia biography extract + source URL.
+  mbid        String?
+  bio         String?
+  bioUrl      String?
+  area        String?
+  beginYear   Int?
   /// JSON array of Spotify's own genre tags.
   genres      String?
   externalUrl String?
-  /// JSON array of {name, type, year, imageUrl, url}. Real releases only.
+  /// JSON array of real releases. Never generated.
   releases    String?
   found       Boolean  @default(false)
   fetchedAt   DateTime @default(now())

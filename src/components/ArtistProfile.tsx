@@ -1,18 +1,17 @@
 "use client";
 
 import { Avatar } from "@/components/Avatar";
-import { Empty, Panel, TierBadge } from "@/components/ui";
+import { Panel, TierBadge } from "@/components/ui";
 import { EVENT_LABEL } from "@/lib/sim/constants";
-import { fmtCompact, fmtInt, fmtListeners, fmtPct } from "@/lib/format";
+import { fmtCompact, fmtListeners, fmtPct } from "@/lib/format";
 import { fmtSimDate } from "@/lib/sim/time";
 
 export interface ProfilePayload {
-  source: "spotify" | "unavailable" | "simulated";
-  isReal: boolean;
-  spotifyConfigured: boolean;
+  source: "open" | "unavailable";
   avatar: string | null;
-  spotify: {
-    id: string; followers: number; popularity: number; genres: string[]; url: string;
+  identity: {
+    mbid: string | null; bio: string | null; bioUrl: string | null;
+    area: string | null; beginYear: number | null;
   } | null;
   about: {
     genre: string; tier: string; debutMs: number; debutLabel: string; active: boolean;
@@ -24,12 +23,13 @@ export interface ProfilePayload {
   releases: Release[];
 }
 
-type Release =
-  | { title: string; type: string; monthKey: number; dateMs: number; listenersAtRelease: number | null; note: string | null }
-  | { name: string; type: string; year: number; imageUrl: string | null; url: string; totalTracks: number };
-
-function isSpotifyRelease(r: Release): r is Extract<Release, { name: string }> {
-  return "name" in r;
+interface Release {
+  title: string;
+  type: string;
+  year: number | null;
+  date: string | null;
+  mbid: string;
+  coverUrl: string | null;
 }
 
 export function ArtistHeader({
@@ -42,51 +42,76 @@ export function ArtistHeader({
   return <Avatar name={name} src={profile?.avatar} size={64} />;
 }
 
-/** About panel: a career summary assembled from the run, not from anywhere else. */
+/**
+ * About: the real biography first, then the simulated career beneath it,
+ * separated so it is never ambiguous which is which.
+ */
 export function AboutPanel({ profile }: { profile: ProfilePayload | null }) {
   if (!profile) return <div className="label px-3 py-8 text-center">Loading profile…</div>;
   const a = profile.about;
+  const id = profile.identity;
   const trajectory =
     a.listeners >= a.peakListeners * 0.95
-      ? "at or near their peak"
+      ? "at or near their simulated peak"
       : a.listeners >= a.peakListeners * 0.5
-        ? `down from a peak of ${fmtListeners(a.peakListeners)}`
-        : `well below a peak of ${fmtListeners(a.peakListeners)}`;
+        ? `down from a simulated peak of ${fmtListeners(a.peakListeners)}`
+        : `well below a simulated peak of ${fmtListeners(a.peakListeners)}`;
 
   return (
     <Panel title="About" bodyClass="p-4">
-      <p className="text-sm leading-relaxed text-fg-dim">
-        Listed {a.debutLabel} in <span className="text-fg">{a.genre}</span>, currently classified{" "}
-        <TierBadge tier={a.tier} />. {a.monthsListed} months on the exchange,{" "}
-        {fmtListeners(a.listeners)} monthly listeners — {trajectory}
-        {a.bestRank ? `, with a best rank of #${a.bestRank}` : ""}.{" "}
-        {a.active ? (
-          <>
-            Royalties are running at {fmtCompact(a.monthlyRoyalty)} credits a month against{" "}
-            {fmtPct(a.volatility, 0)} annualised volatility.
-          </>
-        ) : (
-          <span className="text-down">
-            No longer commercially active as of {a.exitMs ? fmtSimDate(a.exitMs) : "—"}
-            {a.exitReason ? ` (${a.exitReason})` : ""}. Contracts pay nothing from that date.
-          </span>
-        )}
-      </p>
-
-      {profile.spotify && (
-        <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-1.5 border-t border-line pt-3 text-xs sm:grid-cols-3">
-          <Row k="Spotify followers" v={fmtInt(profile.spotify.followers)} />
-          <Row k="Spotify popularity" v={`${profile.spotify.popularity} / 100`} />
-          <Row
-            k="Spotify genres"
-            v={profile.spotify.genres.slice(0, 3).join(", ") || "—"}
-          />
-        </dl>
+      {id?.bio ? (
+        <>
+          <p className="text-sm leading-relaxed text-fg">{id.bio}</p>
+          <p className="label mt-2">
+            {[id.area, id.beginYear ? `active from ${id.beginYear}` : null]
+              .filter(Boolean)
+              .join(" · ")}
+            {id.bioUrl && (
+              <>
+                {" · "}
+                <a
+                  href={id.bioUrl}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="text-cyan hover:underline"
+                >
+                  Wikipedia ↗
+                </a>
+              </>
+            )}
+          </p>
+        </>
+      ) : (
+        <p className="text-xs leading-relaxed text-fg-mute">
+          No biography found for this name in the open sources. Nothing is written here in its
+          place.
+        </p>
       )}
+
+      <div className="mt-4 border-t border-line pt-3">
+        <div className="label mb-2">In this simulation</div>
+        <p className="text-xs leading-relaxed text-fg-dim">
+          Listed {a.debutLabel} in <span className="text-fg">{a.genre}</span>, currently{" "}
+          <TierBadge tier={a.tier} />. {a.monthsListed} months on the exchange,{" "}
+          {fmtListeners(a.listeners)} monthly listeners — {trajectory}
+          {a.bestRank ? `, best rank #${a.bestRank}` : ""}.{" "}
+          {a.active ? (
+            <>
+              Royalties running at {fmtCompact(a.monthlyRoyalty)} credits a month against{" "}
+              {fmtPct(a.volatility, 0)} annualised volatility.
+            </>
+          ) : (
+            <span className="text-down">
+              Delisted {a.exitMs ? fmtSimDate(a.exitMs) : "—"}
+              {a.exitReason ? ` (${a.exitReason})` : ""}; contracts pay nothing from that date.
+            </span>
+          )}
+        </p>
+      </div>
 
       {a.notable.length > 0 && (
         <div className="mt-4 border-t border-line pt-3">
-          <div className="label mb-2">Career events in this run</div>
+          <div className="label mb-2">Simulated career events</div>
           <ul className="space-y-1">
             {a.notable.map((e, i) => (
               <li key={i} className="flex items-baseline gap-2 text-xs">
@@ -99,124 +124,84 @@ export function AboutPanel({ profile }: { profile: ProfilePayload | null }) {
         </div>
       )}
 
-      {profile.isReal && (
-        <p className="mt-4 border-t border-line pt-3 text-xs leading-relaxed text-fg-mute">
-          Everything above except the Spotify figures is generated by this simulation and
-          describes nobody. Listener counts, royalties, tier, volatility and the career events
-          listed are output from a seeded random number generator.
-        </p>
-      )}
+      <p className="mt-4 border-t border-line pt-3 text-xs leading-relaxed text-fg-mute">
+        The biography, photograph and discography are real, from Wikipedia and MusicBrainz.
+        Everything under <span className="text-fg-dim">In this simulation</span> is not: listener
+        counts, royalties, tier, volatility, rank and every event listed are output from a seeded
+        random number generator and describe nobody.
+      </p>
     </Panel>
   );
 }
 
-/** Discography. Real releases for real artists, generated ones for the rest. */
+/** Discography. Real release groups from MusicBrainz, sleeves from the CAA. */
 export function DiscographyPanel({ profile }: { profile: ProfilePayload | null }) {
   if (!profile) return null;
+  const releases: Release[] = profile.releases ?? [];
 
-  if (profile.isReal && profile.source !== "spotify") {
+  if (releases.length === 0) {
     return (
       <Panel title="Discography" right={<span className="label">real releases only</span>}>
         <div className="px-4 py-8 text-center">
-          <p className="text-sm text-fg-dim">
-            {profile.spotifyConfigured
-              ? "No Spotify match for this name."
-              : "Spotify is not connected."}
-          </p>
+          <p className="text-sm text-fg-dim">No catalogue found for this name.</p>
           <p className="mx-auto mt-2 max-w-lg text-xs leading-relaxed text-fg-mute">
-            This is a real artist, so their catalogue is not generated — inventing albums for a
-            real person would read as a factual claim, which nothing in this simulation is
-            entitled to make. Add <span className="num text-fg-dim">SPOTIFY_CLIENT_ID</span> and{" "}
-            <span className="num text-fg-dim">SPOTIFY_CLIENT_SECRET</span> to{" "}
-            <span className="num text-fg-dim">.env</span> and their real releases will appear here.
+            MusicBrainz returned no exact match, so nothing is shown. A catalogue is not something
+            this application will invent for a real person.
           </p>
         </div>
       </Panel>
     );
   }
 
-  const releases = profile.releases ?? [];
-  if (releases.length === 0) {
-    return (
-      <Panel title="Discography">
-        <Empty>No releases yet</Empty>
-      </Panel>
-    );
-  }
-
+  const albums = releases.filter((r) => r.type === "album").length;
   return (
     <Panel
       title="Discography"
       right={
         <span className="label">
-          {profile.source === "spotify" ? "via Spotify" : "simulated"} · {releases.length}
+          MusicBrainz · {releases.length} releases · {albums} albums
         </span>
       }
       bodyClass="max-h-[520px] overflow-auto p-3"
     >
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {releases.map((r, i) => {
-          const spotify = isSpotifyRelease(r);
-          const title = spotify ? r.name : r.title;
-          const year = spotify ? r.year : new Date(r.dateMs).getUTCFullYear();
-          const body = (
-            <>
+        {releases.map((r) => (
+          <li key={r.mbid}>
+            <a
+              href={`https://musicbrainz.org/release-group/${r.mbid}`}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="block hover:opacity-80"
+            >
               <span
                 className="mb-2 block aspect-square w-full overflow-hidden border border-line-2"
-                style={{
-                  background: spotify && r.imageUrl ? undefined : coverGradient(title),
-                }}
+                style={{ background: coverGradient(r.title) }}
               >
-                {spotify && r.imageUrl ? (
+                {r.coverUrl && (
+                  // Cover Art Archive 404s where no sleeve exists; the onError
+                  // hides the image and the gradient behind it shows through.
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={r.imageUrl}
+                    src={r.coverUrl}
                     alt=""
                     loading="lazy"
                     className="h-full w-full object-cover"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).style.display = "none";
+                    }}
                   />
-                ) : null}
+                )}
               </span>
-              <span className="block truncate text-xs text-fg" title={title}>
-                {title}
+              <span className="block truncate text-xs text-fg" title={r.title}>
+                {r.title}
               </span>
               <span className="label mt-0.5 block">
-                {r.type} · {year || "—"}
-                {spotify && r.totalTracks ? ` · ${r.totalTracks} tracks` : ""}
+                {r.type} · {r.year ?? "—"}
               </span>
-              {!spotify && r.note && (
-                <span className="mt-1 block truncate text-[11px] text-accent" title={r.note}>
-                  {r.note}
-                </span>
-              )}
-            </>
-          );
-
-          return (
-            <li key={i}>
-              {spotify && r.url ? (
-                <a
-                  href={r.url}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  className="block hover:opacity-80"
-                >
-                  {body}
-                </a>
-              ) : (
-                <span className="block">{body}</span>
-              )}
-            </li>
-          );
-        })}
+            </a>
+          </li>
+        ))}
       </ul>
-      {profile.source === "simulated" && (
-        <p className="mt-3 border-t border-line pt-2 text-xs leading-relaxed text-fg-mute">
-          This artist is generated, so the catalogue is too — titles, dates and cadence come from
-          the run seed. Where a release lines up with a market event the event is noted beneath
-          it, but the engine has no release model: that is presentation, not causation.
-        </p>
-      )}
     </Panel>
   );
 }

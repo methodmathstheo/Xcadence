@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { RNG } from "@/lib/rng";
-import { generateNames, GENRES, ROSTER, ROSTER_GENRES } from "@/lib/sim/names";
+import { ROSTER, ROSTER_GENRES } from "@/lib/sim/names";
 import {
   advanceDays,
   applyMarketShock,
@@ -25,8 +25,11 @@ import { monthKey, monthKeyToMs, MS_DAY } from "@/lib/sim/time";
 /** Simulated "today" when a run is created. Fixed so seeds reproduce exactly. */
 export const SIM_START_MS = Date.UTC(2026, 8, 1);
 export const HISTORY_MONTHS = 36;
-/** Sized so ~400 artists are still active once 36 months of exits have run. */
-export const UNIVERSE_SIZE = 600;
+/**
+ * The universe is exactly the roster. No generated artists are listed, which
+ * means the venue is a closed cohort: nothing debuts, and exits shrink it.
+ */
+export const UNIVERSE_SIZE = ROSTER.length;
 export const BOT_COUNT = 32;
 
 const BOT_STRATEGIES = [
@@ -56,7 +59,6 @@ const BOT_SUFFIX = ["Capital", "Partners", "Advisors", "Desk", "Systematic", "Re
  */
 export async function createRun(seed: number): Promise<number> {
   const rng = new RNG(seed);
-  const names = generateNames(rng.fork("names"), UNIVERSE_SIZE);
   const startMonth = monthKey(SIM_START_MS) - HISTORY_MONTHS;
 
   // ---------------------------------------------------------------- artists
@@ -64,14 +66,17 @@ export async function createRun(seed: number): Promise<number> {
   for (let i = 0; i < UNIVERSE_SIZE; i++) {
     const r = rng.fork("artist", i);
 
-    // Quality is concentrated near the bottom: most artists are not good bets.
-    // The cube makes the top of the distribution genuinely scarce — roughly
-    // 4–5% of the universe ever reaches superstar listener counts.
-    const trueQuality = Math.min(0.98, Math.max(0.02, Math.pow(r.next(), 3.0) * 1.05));
+    // Every listing is a charting act, so quality no longer piles up at the
+    // bottom the way it did when most of the universe was unknown. Still
+    // right-skewed — being signed and being Kendrick are different things.
+    const trueQuality = Math.min(0.98, Math.max(0.05, Math.pow(r.next(), 1.6) * 1.05));
 
+    // Roughly a fifth of the old rate. These are established artists, not
+    // emerging acts, and the previous calibration would have retired a quarter
+    // of the roster before the run even opened.
     const hazardRate = Math.max(
-      0.0004,
-      0.019 * Math.exp(-3.4 * trueQuality) * r.uniform(0.7, 1.4),
+      0.0002,
+      0.004 * Math.exp(-3.4 * trueQuality) * r.uniform(0.7, 1.4),
     );
     const driftMu = -0.011 + 0.05 * trueQuality + r.normal(0, 0.006);
     const sigma = 0.055 + 0.2 * (1 - trueQuality) + r.uniform(0, 0.05);
@@ -87,8 +92,8 @@ export async function createRun(seed: number): Promise<number> {
 
     states.push({
       id: i, // temporary; replaced with the DB id after insert
-      name: names[i],
-      genre: r.pick(GENRES),
+      name: ROSTER[i],
+      genre: r.pick(ROSTER_GENRES),
       tier: classifyTier(listeners),
       debutTier: classifyTier(listeners),
       debutMs,
@@ -115,22 +120,6 @@ export async function createRun(seed: number): Promise<number> {
       listenerTrail: [listeners],
       dirty: false,
     });
-  }
-
-  // ------------------------------------------------------- headline roster
-  // Real names go to the highest-quality artists in the universe. Assigned at
-  // random they would routinely draw exits and label drops, and a simulation
-  // publishing fabricated career obituaries against real people is not
-  // something to ship even into a private sandbox. Placing them at the top
-  // does not exempt them from the process — the same shocks apply — it just
-  // makes the common case a plausible one.
-  const byQuality = states
-    .map((a, i) => ({ i, q: a.trueQuality }))
-    .sort((x, y) => y.q - x.q);
-  for (let r = 0; r < Math.min(ROSTER.length, byQuality.length); r++) {
-    const a = states[byQuality[r].i];
-    a.name = ROSTER[r];
-    a.genre = rng.fork("roster", r).pick(ROSTER_GENRES);
   }
 
   // ------------------------------------------------- 36 months of history

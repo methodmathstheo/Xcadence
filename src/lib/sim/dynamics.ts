@@ -77,8 +77,9 @@ const MAX_LISTENERS = 160_000_000;
 
 /** Long-run listener level implied by hidden quality. */
 export function targetListeners(a: Pick<ArtistState, "trueQuality">): number {
-  // quality 0 → ~22k, quality 1 → ~20M, log-linear between.
-  return Math.exp(10.0 + 6.8 * a.trueQuality);
+  // quality 0 → ~200k, quality 1 → ~36M. Shifted up from the old curve: every
+  // artist here is a charting act, so nobody sits at hobbyist listener counts.
+  return Math.exp(12.2 + 5.2 * a.trueQuality);
 }
 
 function reversionPull(listeners: number, target: number): number {

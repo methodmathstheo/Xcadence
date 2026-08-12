@@ -136,14 +136,14 @@ export default function ArtistPage({ params }: { params: Promise<{ id: string }>
             {a.genre} · debut {fmtSimDate(a.debutMs)} · contract = 1/
             {fmtCompact(a.unitScale)} of the royalty claim
           </p>
-          {profile?.spotify?.url && (
+          {profile?.identity?.mbid && (
             <a
-              href={profile.spotify.url}
+              href={`https://musicbrainz.org/artist/${profile.identity.mbid}`}
               target="_blank"
               rel="noreferrer noopener"
-              className="label mt-1 inline-block text-up hover:underline"
+              className="label mt-1 inline-block text-cyan hover:underline"
             >
-              Open on Spotify ↗
+              MusicBrainz ↗
             </a>
           )}
           </div>
