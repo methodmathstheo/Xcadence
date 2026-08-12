@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { engine } from "@/lib/engine/engine";
 import { SimulatedDataProvider } from "@/lib/data/simulated";
+import { dcf, estimateInputs } from "@/lib/quant/dcf";
 import type { ArtistSummary } from "@/lib/data/provider";
 
 export const runtime = "nodejs";
@@ -20,6 +21,9 @@ export async function GET(req: Request) {
   for (const id of w.order) {
     const a = w.artists.get(id)!;
     if (!a.active && !includeInactive) continue;
+    // Same estimator the artist page and the fundamental bots use: observable
+    // inputs and a tier-inferred hazard. Never the artist's real parameters.
+    const fairValue = dcf(estimateInputs(a)).pvPerContract;
     rows.push({
       id: a.id,
       name: a.name,
@@ -42,6 +46,8 @@ export async function GET(req: Request) {
       b: a.b,
       vMax: a.vMax,
       unitScale: a.unitScale,
+      fairValue,
+      divergence: fairValue > 0 ? a.price / fairValue - 1 : 0,
     });
   }
 

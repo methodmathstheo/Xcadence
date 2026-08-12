@@ -30,6 +30,9 @@ export interface ArtistSummary {
   b: number;
   vMax: number;
   unitScale: number;
+  /** DCF value per contract from public inputs, and price vs that value. */
+  fairValue: number;
+  divergence: number;
 }
 
 export interface ArtistHistoryPoint {

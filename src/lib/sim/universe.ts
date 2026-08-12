@@ -264,7 +264,11 @@ export async function createRun(seed: number): Promise<number> {
         runId: run.id,
         name: `${BOT_PREFIX[i % BOT_PREFIX.length]} ${botRng.pick(BOT_SUFFIX)}`,
         strategy: s.strategy,
-        cash: botRng.uniform(250_000, 2_500_000),
+        // Sized to represent the professional side of the venue as a whole,
+        // not 32 retail accounts. At ~1M each they collectively could not shift
+        // 400 markets whose LMSR depth is 0.4-3M credits apiece, and quotes
+        // drifted steadily further from fundamentals instead of converging.
+        cash: botRng.uniform(6_000_000, 55_000_000),
         aggression: botRng.uniform(0.35, 1.4),
         horizon: botRng.int(3, 40),
       };

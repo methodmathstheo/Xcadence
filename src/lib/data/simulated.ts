@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { monthKey } from "@/lib/sim/time";
+import { dcf, estimateInputs } from "@/lib/quant/dcf";
 import type {
   ArtistHistoryPoint,
   ArtistSummary,
@@ -69,6 +70,7 @@ type ArtistRow = {
 };
 
 export function toSummary(a: ArtistRow, rank: number): ArtistSummary {
+  const fairValue = dcf(estimateInputs(a)).pvPerContract;
   return {
     id: a.id,
     name: a.name,
@@ -91,5 +93,7 @@ export function toSummary(a: ArtistRow, rank: number): ArtistSummary {
     b: a.b,
     vMax: a.vMax,
     unitScale: a.unitScale,
+    fairValue,
+    divergence: fairValue > 0 ? a.price / fairValue - 1 : 0,
   };
 }

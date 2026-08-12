@@ -166,12 +166,18 @@ export function estimateInputs(a: {
   const tier = a.tier as Tier;
   const observedQuarterly =
     a.listeners90 > 0 ? a.listeners / a.listeners90 - 1 : 0;
-  const observedAnnual = Math.pow(1 + clamp(observedQuarterly, -0.6, 2), 4) - 1;
+  const observedAnnual = Math.pow(1 + clamp(observedQuarterly, -0.5, 1), 4) - 1;
   const prior = TIER_GROWTH_PRIOR[tier] ?? 0.1;
 
   // Shrinkage weight falls as realised vol rises: noisier signal, trust it less.
   const w = clamp(1 / (1 + 8 * a.volatility), 0.15, 0.75);
-  const growthAnnual = clamp(w * observedAnnual + (1 - w) * prior, -0.6, 3);
+
+  // Hard bounds on the annual rate. Compounding a quarter's move to the fourth
+  // power is violently unstable on emerging names — left unbounded it produced
+  // fair values that moved by multiples month to month, which is not a
+  // valuation any analyst would publish and not an anchor any market could
+  // track. No projection here runs above 120% or below -50% a year.
+  const growthAnnual = clamp(w * observedAnnual + (1 - w) * prior, -0.5, 1.2);
 
   return {
     monthlyRoyalty: a.listeners * a.royaltyRate,

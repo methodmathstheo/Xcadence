@@ -1,3 +1,4 @@
+import type { PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { RNG } from "@/lib/rng";
 import {
@@ -8,12 +9,13 @@ import {
 } from "@/lib/sim/dynamics";
 import { ensureHeadroom, lmsrPrice } from "@/lib/sim/lmsr";
 import { monthKey, monthKeyToMs, MS_DAY, SPEEDS } from "@/lib/sim/time";
-import { classifyTier, type Tier } from "@/lib/sim/constants";
+import type { Tier } from "@/lib/sim/constants";
 import { getOrCreateRun, resetRun } from "@/lib/sim/run";
 import { runOrderFlow } from "@/lib/engine/bots";
 import { spawnArtists } from "@/lib/engine/entry";
 import { accrueRoyalties, refreshOfferings } from "@/lib/engine/offerings";
-import type { PendingWrites, StreamFrame, TapeEntry, World } from "@/lib/engine/types";
+import { pushEvent, pushTape } from "@/lib/engine/tape";
+import type { PendingWrites, StreamFrame, World } from "@/lib/engine/types";
 
 /** Wall-clock period of one tick. Simulated time advances by this × speed. */
 export const TICK_MS = 1000;
@@ -21,7 +23,6 @@ export const TICK_MS = 1000;
 const FLUSH_EVERY = 5;
 /** Live price samples retained per artist, in memory only. */
 const RING = 720;
-const TAPE_MAX = 300;
 /** Months of fundamentals kept on disk; older rows are pruned at rollover. */
 const MONTH_RETENTION = 180;
 /** Trades kept on disk. The tape is a feed, not an audit log. */
@@ -323,6 +324,14 @@ class Engine {
     refreshOfferings(w, r.fork("offer"), tMs);
     spawnArtists(w, r.fork("entry"), tMs);
 
+    // Flow runs weekly, independently of the tick loop. Otherwise a jump
+    // forward advances years of fundamentals while the market trades a handful
+    // of times, and the venue reopens with every quote stale — one round per
+    // month was not enough for repricing to keep up with the drift.
+    for (let week = 0; week < 4; week++) {
+      runOrderFlow(w, r.fork("weekflow", week));
+    }
+
     w.lastMonthKey = mk;
     w.pending.indexPoints.push({
       tMs,
@@ -432,8 +441,7 @@ class Engine {
           });
         if (pending.pricePoints.length)
           await tx.pricePoint.createMany({ data: pending.pricePoints });
-        if (pending.months.length)
-          await tx.artistMonth.createMany({ data: pending.months });
+        if (pending.months.length) await insertMonths(tx, pending.months);
         if (pending.indexPoints.length)
           await tx.indexPoint.createMany({
             data: pending.indexPoints.map((p) => ({ ...p, runId: w.runId })),
@@ -450,6 +458,15 @@ class Engine {
       if (pending.months.length) await this.prune(w);
     } catch (err) {
       console.error("[engine] flush failed", err);
+
+      // Put the work back. The whole flush is one transaction, so a failure
+      // rolls back run.lastMonthKey while the world keeps advancing — and the
+      // next reload then replays months that were already written. Discarding
+      // the batch here is what let the world and the database drift apart
+      // permanently instead of retrying.
+      for (const id of dirty) w.dirty.add(id);
+      mergePending(w.pending, pending);
+
       // If the run disappeared underneath us the world is orphaned and every
       // further write would fail the same way. Drop it and reload on next tick.
       const stillThere = await prisma.run
@@ -685,31 +702,44 @@ export function recomputeIndex(w: World) {
   };
 }
 
-export function pushEvent(
-  w: World,
-  e: { artistId: number | null; kind: string; magnitude: number; headline: string },
+/**
+ * Month rows, written INSERT OR IGNORE.
+ *
+ * A simulated month is closed exactly once in memory, but a failed flush can
+ * leave the durable lastMonthKey behind the world's, and the replay that
+ * follows a reload collides on (artistId, monthKey). Prisma's createMany has
+ * no skipDuplicates on SQLite, so the idempotency goes in the statement.
+ */
+async function insertMonths(
+  tx: Pick<PrismaClient, "$executeRawUnsafe">,
+  rows: PendingWrites["months"],
 ) {
-  w.pending.events.push({ ...e, tMs: w.simMs });
-  const a = e.artistId ? w.artists.get(e.artistId) : null;
-  pushTape(w, {
-    id: `e${w.tick}-${w.pending.events.length}-${e.artistId ?? 0}`,
-    kind: "event",
-    tMs: w.simMs,
-    artistId: e.artistId,
-    artistName: a?.name ?? "—",
-    text: e.headline,
-    eventKind: e.kind,
-    magnitude: e.magnitude,
-  });
-  if (e.kind === "exit" && e.artistId) {
-    const artist = w.artists.get(e.artistId);
-    if (artist) artist.tier = classifyTier(artist.listeners);
+  const CHUNK = 400; // 6 bound parameters per row, well inside SQLite's limit
+  for (let i = 0; i < rows.length; i += CHUNK) {
+    const batch = rows.slice(i, i + CHUNK);
+    const placeholders = batch.map(() => "(?,?,?,?,?,?)").join(",");
+    const values = batch.flatMap((r) => [
+      r.artistId, r.monthKey, r.dateMs, r.listeners, r.royalty, r.rank,
+    ]);
+    await tx.$executeRawUnsafe(
+      `INSERT OR IGNORE INTO "ArtistMonth"
+         ("artistId","monthKey","dateMs","listeners","royalty","rank")
+       VALUES ${placeholders}`,
+      ...values,
+    );
   }
 }
 
-export function pushTape(w: World, entry: TapeEntry) {
-  w.tape.unshift(entry);
-  if (w.tape.length > TAPE_MAX) w.tape.length = TAPE_MAX;
+/** Fold a failed flush's batch back into the live queue for the next attempt. */
+function mergePending(into: PendingWrites, failed: PendingWrites) {
+  into.trades.unshift(...failed.trades);
+  into.events.unshift(...failed.events);
+  into.pricePoints.unshift(...failed.pricePoints);
+  into.months.unshift(...failed.months);
+  into.indexPoints.unshift(...failed.indexPoints);
+  into.equityPoints.unshift(...failed.equityPoints);
+  into.royaltyPayments.unshift(...failed.royaltyPayments);
+  into.newArtists.unshift(...failed.newArtists);
 }
 
 function emptyPending(): PendingWrites {
