@@ -23,7 +23,12 @@ FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
+# Next's standalone server binds to $HOSTNAME. Railway sets that to the
+# container id, which is not a bindable address — the process starts, listens
+# on nothing, and the edge returns 502. Pin it.
+ENV HOSTNAME=0.0.0.0
 ENV DATABASE_URL="file:/data/xcadence.db"
+
 # The real roster: 253 named artists with photographs, biographies and
 # catalogues from Wikipedia and MusicBrainz. Every page carries a disclosure
 # stating which fields are genuine and that all market data is generated.
@@ -39,22 +44,22 @@ RUN apk add --no-cache su-exec \
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
-# Prisma needs the schema and migrations at runtime to create the database.
-COPY --from=builder /app/prisma ./prisma
+
+# The Prisma CLI gets its own tree with the complete dependency graph. Copying
+# just the prisma packages into the standalone bundle looked tidier and failed
+# at runtime with MODULE_NOT_FOUND: standalone ships a minimal node_modules and
+# does not carry the CLI's transitive dependencies.
+COPY --from=deps /app/node_modules /migrator/node_modules
+COPY --from=builder /app/prisma /migrator/prisma
+# The generated client, which the server itself needs.
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 
 EXPOSE 3000
 
 # No VOLUME instruction: Railway rejects it and manages the mount itself. For a
 # plain `docker run`, pass -v to get the same persistence.
 #
-# Starts as root only long enough to take ownership of the mounted volume —
-# a managed mount arrives root-owned, and Prisma cannot create the database in
-# a directory it cannot write — then drops to `app` for migrations and the
-# server itself.
-# Prisma is invoked by its entry point rather than through npx: the standalone
-# output carries its own node_modules without the .bin symlinks npx resolves,
-# so `npx prisma` is not on PATH here.
-CMD ["sh", "-c", "chown -R app:app /data && exec su-exec app sh -c 'node ./node_modules/prisma/build/index.js migrate deploy && node server.js'"]
+# Starts as root only long enough to take ownership of the mounted volume — a
+# managed mount arrives root-owned and Prisma cannot create the database in a
+# directory it cannot write — then drops to `app` for migrations and the server.
+CMD ["sh", "-c", "chown -R app:app /data && exec su-exec app sh -c 'cd /migrator && node node_modules/prisma/build/index.js migrate deploy && cd /app && node server.js'"]
