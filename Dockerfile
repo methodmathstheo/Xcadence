@@ -30,7 +30,11 @@ ENV DATABASE_URL="file:/data/xcadence.db"
 # Set to "demo" for generated names and no outbound requests at all.
 ENV ROSTER_MODE=real
 
-RUN addgroup -S app && adduser -S app -G app && mkdir -p /data && chown app:app /data
+# su-exec lets the entrypoint fix ownership of the mounted volume as root and
+# then drop to an unprivileged user for the process itself.
+RUN apk add --no-cache su-exec \
+ && addgroup -S app && adduser -S app -G app \
+ && mkdir -p /data && chown app:app /data
 
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
@@ -41,10 +45,13 @@ COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 
-USER app
-VOLUME /data
 EXPOSE 3000
 
-# Apply migrations to the mounted volume, then start. The engine boots with the
-# server and seeds a universe on first run.
-CMD ["sh", "-c", "npx prisma migrate deploy && node server.js"]
+# No VOLUME instruction: Railway rejects it and manages the mount itself. For a
+# plain `docker run`, pass -v to get the same persistence.
+#
+# Starts as root only long enough to take ownership of the mounted volume —
+# a managed mount arrives root-owned, and Prisma cannot create the database in
+# a directory it cannot write — then drops to `app` for migrations and the
+# server itself.
+CMD ["sh", "-c", "chown -R app:app /data && exec su-exec app sh -c 'npx prisma migrate deploy && node server.js'"]
