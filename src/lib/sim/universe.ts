@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { RNG } from "@/lib/rng";
-import { genreFor, ROSTER } from "@/lib/sim/names";
+import { generateNames, genreFor, GENRES, isDemo, ROSTER, universeSize } from "@/lib/sim/names";
 import {
   advanceDays,
   applyMarketShock,
@@ -26,10 +26,12 @@ import { monthKey, monthKeyToMs, MS_DAY } from "@/lib/sim/time";
 export const SIM_START_MS = Date.UTC(2026, 8, 1);
 export const HISTORY_MONTHS = 36;
 /**
- * The universe is exactly the roster. No generated artists are listed, which
- * means the venue is a closed cohort: nothing debuts, and exits shrink it.
+ * In real mode the universe is exactly the roster, so the venue is a closed
+ * cohort: nothing debuts and exits shrink it. In demo mode names are generated,
+ * which restores continuous entry and with it the survival and survivorship
+ * tooling's supply of fresh cohorts.
  */
-export const UNIVERSE_SIZE = ROSTER.length;
+export const UNIVERSE_SIZE = universeSize();
 export const BOT_COUNT = 32;
 
 const BOT_STRATEGIES = [
@@ -59,6 +61,10 @@ const BOT_SUFFIX = ["Capital", "Partners", "Advisors", "Desk", "Systematic", "Re
  */
 export async function createRun(seed: number): Promise<number> {
   const rng = new RNG(seed);
+  const demo = isDemo();
+  const names = demo
+    ? generateNames(rng.fork("names"), UNIVERSE_SIZE)
+    : (ROSTER as readonly string[]);
   const startMonth = monthKey(SIM_START_MS) - HISTORY_MONTHS;
 
   // ---------------------------------------------------------------- artists
@@ -92,8 +98,8 @@ export async function createRun(seed: number): Promise<number> {
 
     states.push({
       id: i, // temporary; replaced with the DB id after insert
-      name: ROSTER[i],
-      genre: genreFor(ROSTER[i]),
+      name: names[i],
+      genre: demo ? r.pick(GENRES) : genreFor(names[i]),
       tier: classifyTier(listeners),
       debutTier: classifyTier(listeners),
       debutMs,

@@ -90,6 +90,36 @@ export const ROSTER = [...ROSTER_RAP, ...ROSTER_RNB] as const;
 
 export type Category = "rap" | "rnb";
 
+/**
+ * Which roster the run is built from.
+ *
+ *   real  — the 253 named artists, with photographs, biographies and
+ *           catalogues fetched from Wikipedia and MusicBrainz. The default,
+ *           and appropriate for private use.
+ *   demo  — generated names, no real people, no outbound requests at all.
+ *           Intended for anywhere the app is publicly reachable, where
+ *           attaching simulated career-death events to named living people is
+ *           not something to publish.
+ *
+ * Set ROSTER_MODE=demo to switch. The market, the engine and every quantitative
+ * tool behave identically either way — only the names and the profile lookups
+ * change.
+ */
+export type RosterMode = "real" | "demo";
+
+export function rosterMode(): RosterMode {
+  return process.env.ROSTER_MODE === "demo" ? "demo" : "real";
+}
+
+export function isDemo(): boolean {
+  return rosterMode() === "demo";
+}
+
+/** Universe size for the current mode. */
+export function universeSize(): number {
+  return isDemo() ? 520 : ROSTER.length;
+}
+
 const RAP_SET = new Set<string>(ROSTER_RAP);
 
 /** Which chart an artist belongs to. */

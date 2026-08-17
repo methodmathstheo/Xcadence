@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { fetchOpenProfile } from "@/lib/music/openmusic";
+import { isDemo } from "@/lib/sim/names";
 
 /**
  * Fills the artist profile cache for the whole roster in the background.
@@ -38,7 +39,7 @@ export const warmState: WarmState = (g.__cadenceWarm ??= {
 
 /** Kick off a pass. Safe to call repeatedly; only one runs at a time. */
 export async function warmProfiles(runId: number): Promise<void> {
-  if (warmState.running) return;
+  if (warmState.running || isDemo()) return;
 
   const artists = await prisma.artist.findMany({
     where: { runId, profile: null },

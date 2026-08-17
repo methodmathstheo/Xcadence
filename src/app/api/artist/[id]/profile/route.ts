@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { engine } from "@/lib/engine/engine";
-import { categoryOf, genreFor } from "@/lib/sim/names";
+import { categoryOf, genreFor, isDemo } from "@/lib/sim/names";
 import { fetchOpenProfile } from "@/lib/music/openmusic";
 import { fmtSimDate } from "@/lib/sim/time";
 
@@ -80,7 +80,9 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   };
 
   let profile = await prisma.artistProfile.findUnique({ where: { artistId: id } });
-  const stale = !profile || Date.now() - profile.fetchedAt.getTime() > CACHE_MS;
+  // Demo mode never reaches outside: the names are invented, so there is
+  // nothing real to look up and nothing to be careful about publishing.
+  const stale = !isDemo() && (!profile || Date.now() - profile.fetchedAt.getTime() > CACHE_MS);
 
   if (stale) {
     const open = await fetchOpenProfile(a.name);

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { engine } from "@/lib/engine/engine";
 import { warmProfiles, warmState } from "@/lib/music/warmer";
+import { isDemo } from "@/lib/sim/names";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,7 +33,7 @@ export async function GET() {
 
   // If the background pass is not running and rows are still missing, start it.
   // Covers a reseed, which creates artists the boot-time pass never saw.
-  if (!warmState.running && cached.length < w.order.length) {
+  if (!isDemo() && !warmState.running && cached.length < w.order.length) {
     void warmProfiles(w.runId).catch(() => {});
   }
 
