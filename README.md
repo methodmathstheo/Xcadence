@@ -108,10 +108,10 @@ universe on first run, and starts ticking.
   Cover Art Archive. No API keys required. A background pass fills the cache in
   about nine minutes at MusicBrainz's one-request-per-second limit.
 - **`demo`** — generated names, no real people, and no outbound requests at
-  all. **Use this for any public deployment.** The market, the engine and every
-  quantitative tool behave identically; only the names and the profile lookups
-  change. Demo mode also restores continuous artist entry, which the real
-  roster cannot have — adding a listing there would mean inventing a name.
+  all. The market, the engine and every quantitative tool behave identically;
+  only the names and the profile lookups change. Demo mode also restores
+  continuous artist entry, which the real roster cannot have — adding a listing
+  there would mean inventing a name.
 
 Every figure in the application is simulated in both modes. In `real` mode the
 biography, photograph and discography are genuine and everything else — listener
@@ -126,7 +126,15 @@ docker build -t xcadence .
 docker run -p 3000:3000 -v xcadence-data:/data xcadence
 ```
 
-The image defaults to `ROSTER_MODE=demo`.
+The image defaults to `ROSTER_MODE=real`. On first boot it works through the
+roster at MusicBrainz's one-request-per-second limit — roughly nine minutes —
+so photographs and discographies fill in progressively while the market runs
+normally. The cache lives on the mounted volume, so redeploys against the same
+volume start warm.
+
+Every page carries a disclosure naming which fields are genuine and stating
+that all market data is generated. Set `ROSTER_MODE=demo` if you would rather
+publish generated names instead.
 
 This will **not** run on a serverless platform. The clock is a `setInterval` in
 a long-lived process and the state is a SQLite file, so it needs a container

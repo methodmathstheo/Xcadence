@@ -24,8 +24,11 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV DATABASE_URL="file:/data/xcadence.db"
-# Public deployments should not carry real people's names.
-ENV ROSTER_MODE=demo
+# The real roster: 253 named artists with photographs, biographies and
+# catalogues from Wikipedia and MusicBrainz. Every page carries a disclosure
+# stating which fields are genuine and that all market data is generated.
+# Set to "demo" for generated names and no outbound requests at all.
+ENV ROSTER_MODE=real
 
 RUN addgroup -S app && adduser -S app -G app && mkdir -p /data && chown app:app /data
 
