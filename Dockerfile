@@ -54,4 +54,7 @@ EXPOSE 3000
 # a managed mount arrives root-owned, and Prisma cannot create the database in
 # a directory it cannot write — then drops to `app` for migrations and the
 # server itself.
-CMD ["sh", "-c", "chown -R app:app /data && exec su-exec app sh -c 'npx prisma migrate deploy && node server.js'"]
+# Prisma is invoked by its entry point rather than through npx: the standalone
+# output carries its own node_modules without the .bin symlinks npx resolves,
+# so `npx prisma` is not on PATH here.
+CMD ["sh", "-c", "chown -R app:app /data && exec su-exec app sh -c 'node ./node_modules/prisma/build/index.js migrate deploy && node server.js'"]
