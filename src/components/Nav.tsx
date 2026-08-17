@@ -23,6 +23,12 @@ export function Nav() {
         <Logo size={15} />
         <span className="label hidden sm:inline">Royalty Exchange</span>
       </Link>
+      <span
+        className="label mr-4 border border-accent/40 px-1.5 py-px text-accent"
+        title="Every price, listener count and royalty figure in this application is generated."
+      >
+        Simulated
+      </span>
       {LINKS.map(([href, label]) => {
         const active = href === "/" ? path === "/" : path.startsWith(href);
         return (

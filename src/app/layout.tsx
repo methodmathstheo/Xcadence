@@ -4,6 +4,7 @@ import "./globals.css";
 import { Nav } from "@/components/Nav";
 import { ClockBar } from "@/components/ClockBar";
 import { TickerBar } from "@/components/TickerBar";
+import { isDemo } from "@/lib/sim/names";
 
 // Space Grotesk for chrome and headings, JetBrains Mono for every figure.
 // The mono is the load-bearing choice here: this interface is mostly columns
