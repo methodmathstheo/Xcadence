@@ -78,6 +78,9 @@ export function executeTrade(
     ring.push({ t: w.simMs, p: a.price });
     if (ring.length > 720) ring.shift();
   }
+  // Schema intent is month closes + every *user* trade — bot fills are far more
+  // frequent and would otherwise flood PricePoint with rows the analytics don't need.
+  if (isUser) w.pending.pricePoints.push({ artistId, tMs: w.simMs, price: a.price });
 
   // ---- apply to the trader
   const realised = applyToPosition(positions!, artistId, quote.qty, quote.cost);

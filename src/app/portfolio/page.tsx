@@ -72,7 +72,10 @@ export default function PortfolioPage() {
   const a = d.analysis;
   const acc = d.account;
   const equity = m.account.equity || acc.equity;
-  const hasBook = a.stats.holdings > 0;
+  // Real holdings, not the history-gated `a.stats.holdings` — a fresh position
+  // has too little monthly price history for the mean-variance analytics to
+  // use yet, but it is still a real position and must not read as an empty book.
+  const hasBook = d.holdings.length > 0;
 
   const contribution = d.holdings
     .map((h) => ({ name: h.name, artistId: h.artistId, pnl: h.unrealised + h.realised }))
@@ -102,10 +105,17 @@ export default function PortfolioPage() {
         <Stat label="Cash" value={fmtCompact(acc.cash)} sub="uninvested" />
         <Stat
           label="Positions"
-          value={String(a.stats.holdings)}
+          value={String(d.holdings.length)}
           sub={`${a.stats.effectiveHoldings.toFixed(1)} effective`}
         />
       </div>
+
+      {!d.historyReady && hasBook && (
+        <div className="border border-accent/40 bg-accent/5 px-3 py-2 text-xs text-accent">
+          Not enough monthly price history yet for the risk figures to mean much. Advance the
+          clock a few simulated months and they will settle.
+        </div>
+      )}
 
       {!hasBook ? (
         <Panel title="No positions">
@@ -152,13 +162,6 @@ export default function PortfolioPage() {
             />
             <Stat label="Gross exposure" value={fmtCompact(a.stats.grossExposure)} />
           </div>
-
-          {!d.historyReady && (
-            <div className="border border-accent/40 bg-accent/5 px-3 py-2 text-xs text-accent">
-              Not enough monthly price history yet for the risk figures to mean much. Advance the
-              clock a few simulated months and they will settle.
-            </div>
-          )}
 
           <div className="grid grid-cols-1 gap-5 xl:grid-cols-[3fr_2fr]">
             <Panel
