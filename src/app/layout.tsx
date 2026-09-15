@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Nav } from "@/components/Nav";
@@ -21,8 +21,15 @@ const mono = JetBrains_Mono({
   weight: ["400", "500", "600"],
 });
 
+export const viewport: Viewport = {
+  themeColor: "#0d0f13",
+};
+
 export const metadata: Metadata = {
   title: "xcadence — royalty exchange",
+  // Names the installed app on a home screen, where the full title is too long.
+  applicationName: "xcadence",
+  appleWebApp: { capable: true, title: "xcadence", statusBarStyle: "black-translucent" },
   description: "A live simulated exchange in artist royalty shares.",
 };
 
