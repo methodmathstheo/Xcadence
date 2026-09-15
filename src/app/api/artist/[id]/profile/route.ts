@@ -91,7 +91,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       mbid: open.mbid,
       bio: open.bio,
       bioUrl: open.bioUrl,
-      genres: JSON.stringify(open.genres),
+      genres: open.genres === null ? null : JSON.stringify(open.genres),
       area: open.area,
       beginYear: open.beginYear,
       imageUrl: open.photoUrl,

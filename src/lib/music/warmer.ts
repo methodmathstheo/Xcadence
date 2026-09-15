@@ -78,7 +78,7 @@ export async function warmProfiles(runId: number): Promise<void> {
           mbid: open.mbid,
           bio: open.bio,
           bioUrl: open.bioUrl,
-          genres: JSON.stringify(open.genres),
+          genres: open.genres === null ? null : JSON.stringify(open.genres),
           area: open.area,
           beginYear: open.beginYear,
           imageUrl: open.photoUrl,
@@ -86,7 +86,7 @@ export async function warmProfiles(runId: number): Promise<void> {
           found: open.found,
         },
         update: {
-          genres: JSON.stringify(open.genres),
+          genres: open.genres === null ? null : JSON.stringify(open.genres),
           // Refresh the rest while we are here; a profile is only re-fetched
           // when something was missing from it.
           mbid: open.mbid,

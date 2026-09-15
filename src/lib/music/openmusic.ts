@@ -22,7 +22,9 @@ const CAA = "https://coverartarchive.org";
 const WIKIDATA = "https://www.wikidata.org/w/api.php";
 
 /** MusicBrainz rate limit: one request per second, sustained. */
-const MB_INTERVAL_MS = 1100;
+const MB_INTERVAL_MS = 1250;
+/** Attempts per request before giving up on a transient failure. */
+const MAX_ATTEMPTS = 3;
 
 let chain: Promise<unknown> = Promise.resolve();
 
@@ -37,17 +39,38 @@ function throttle<T>(fn: () => Promise<T>): Promise<T> {
   return next;
 }
 
+/**
+ * Fetch JSON, retrying transient failures.
+ *
+ * MusicBrainz answers a sustained crawl with 503 "the web server is currently
+ * busy" even inside its published rate limit. A single attempt treated that as
+ * "this artist has no genres" and cached the blank permanently — which is how
+ * Kendrick Lamar ended up with no genre while MusicBrainz held five for him.
+ *
+ * Returns null for a failed request, distinct from a successful request whose
+ * payload is empty. Callers depend on that difference to decide whether a
+ * result is worth caching.
+ */
 async function getJson<T>(url: string): Promise<T | null> {
-  try {
-    const res = await fetch(url, {
-      headers: { "User-Agent": UA, Accept: "application/json" },
-      cache: "no-store",
-    });
-    if (!res.ok) return null;
-    return (await res.json()) as T;
-  } catch {
-    return null;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      const res = await fetch(url, {
+        headers: { "User-Agent": UA, Accept: "application/json" },
+        cache: "no-store",
+      });
+      if (res.ok) return (await res.json()) as T;
+      // 503 busy and 429 rate-limited are worth waiting out; anything else
+      // (404, 400) will not improve on a retry.
+      if (res.status !== 503 && res.status !== 429) return null;
+      if (attempt < MAX_ATTEMPTS) {
+        await new Promise((r) => setTimeout(r, 1500 * attempt * attempt));
+      }
+    } catch {
+      if (attempt >= MAX_ATTEMPTS) return null;
+      await new Promise((r) => setTimeout(r, 1500 * attempt));
+    }
   }
+  return null;
 }
 
 export interface OpenRelease {
@@ -61,8 +84,12 @@ export interface OpenRelease {
 
 export interface OpenProfile {
   mbid: string | null;
-  /** Real genre tags, most-attested first. Empty where no source has any. */
-  genres: string[];
+  /**
+   * Real genre tags, most-attested first. Empty where a source answered and had
+   * none; null where every lookup failed, so the caller can retry rather than
+   * cache a blank.
+   */
+  genres: string[] | null;
   disambiguation: string | null;
   area: string | null;
   beginYear: number | null;
@@ -165,13 +192,14 @@ async function fetchReleases(mbid: string): Promise<OpenRelease[]> {
  * "jazz rap" and "west coast hip hop"; SZA carries nothing at all. Ordered by
  * vote count so the most-attested tag leads.
  */
-async function fetchMbGenres(mbid: string): Promise<string[]> {
+async function fetchMbGenres(mbid: string): Promise<string[] | null> {
   const data = await throttle(() =>
     getJson<{ genres?: { name: string; count: number }[] }>(
       `${MB}/artist/${mbid}?inc=genres&fmt=json`,
     ),
   );
-  return (data?.genres ?? [])
+  if (data === null) return null; // request failed; not "no genres"
+  return (data.genres ?? [])
     .sort((a, b) => (b.count ?? 0) - (a.count ?? 0))
     .map((g) => g.name);
 }
@@ -182,14 +210,15 @@ async function fetchMbGenres(mbid: string): Promise<string[]> {
  * Two calls: the artist's claims, then one batched label lookup for whatever
  * entity ids come back. Not on the MusicBrainz throttle — different service.
  */
-async function fetchWikidataGenres(title: string): Promise<string[]> {
+async function fetchWikidataGenres(title: string): Promise<string[] | null> {
   const claims = await getJson<{
     entities?: Record<string, { claims?: Record<string, { mainsnak?: { datavalue?: { value?: { id?: string } } } }[]> }>;
   }>(
     `${WIKIDATA}?action=wbgetentities&sites=enwiki&titles=${encodeURIComponent(title)}` +
       `&props=claims&format=json&origin=*`,
   );
-  if (!claims?.entities) return [];
+  if (claims === null) return null;
+  if (!claims.entities) return [];
 
   const ids: string[] = [];
   for (const [qid, entity] of Object.entries(claims.entities)) {
@@ -207,7 +236,8 @@ async function fetchWikidataGenres(title: string): Promise<string[]> {
     `${WIKIDATA}?action=wbgetentities&ids=${ids.slice(0, 8).join("|")}` +
       `&props=labels&languages=en&format=json&origin=*`,
   );
-  if (!labels?.entities) return [];
+  if (labels === null) return null;
+  if (!labels.entities) return [];
 
   // Preserve the order the claims came back in rather than object key order.
   return ids
@@ -240,8 +270,16 @@ export async function fetchOpenProfile(name: string): Promise<OpenProfile> {
   const [mb, wiki] = await Promise.all([findMbArtist(name), fetchWiki(name)]);
   const releases = mb ? await fetchReleases(mb.id) : [];
 
-  let genres = mb ? await fetchMbGenres(mb.id) : [];
-  if (genres.length === 0) genres = await fetchWikidataGenres(name);
+  // MusicBrainz first, Wikidata where it has nothing. If both fail outright the
+  // result is null and the profile is left incomplete for the next pass.
+  const mbGenres = mb ? await fetchMbGenres(mb.id) : [];
+  let genres: string[] | null = mbGenres;
+  if (mbGenres === null || mbGenres.length === 0) {
+    const wd = await fetchWikidataGenres(name);
+    if (wd && wd.length > 0) genres = wd;
+    else if (mbGenres === null && wd === null) genres = null;
+    else genres = mbGenres ?? wd ?? [];
+  }
 
   return {
     mbid: mb?.id ?? null,
