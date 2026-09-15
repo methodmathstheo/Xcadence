@@ -91,6 +91,13 @@ export interface World {
   };
   positions: Map<number, PositionState>;
 
+  /**
+   * Shared passive-flow level in units of `b`, an OU process around zero.
+   * In memory only: it is mean-zero, so a restart resuming at the mean is
+   * correct rather than lossy.
+   */
+  passiveLevel: number;
+
   offerings: OfferingState[];
   offeringPositions: OfferingPositionState[];
 

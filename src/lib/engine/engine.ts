@@ -166,6 +166,7 @@ class Engine {
           { qty: p.qty, costBasis: p.costBasis, realised: p.realised },
         ]),
       ),
+      passiveLevel: 0,
       offerings: offerings.map((o) => ({
         id: o.id,
         artistId: o.artistId,

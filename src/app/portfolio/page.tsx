@@ -72,7 +72,11 @@ export default function PortfolioPage() {
   const a = d.analysis;
   const acc = d.account;
   const equity = m.account.equity || acc.equity;
-  const hasBook = a.stats.holdings > 0;
+  // Gate on what the account actually holds, not on whether the risk model
+  // could run. These came apart when a holding lacked price history or its
+  // quote hit zero: the book was full and the page said "No positions".
+  const hasBook = d.holdings.length > 0 || a.stats.holdings > 0;
+  const riskReady = a.stats.analysedHoldings >= 2 && a.stats.volMonthly > 0;
 
   const contribution = d.holdings
     .map((h) => ({ name: h.name, artistId: h.artistId, pnl: h.unrealised + h.realised }))
@@ -102,8 +106,12 @@ export default function PortfolioPage() {
         <Stat label="Cash" value={fmtCompact(acc.cash)} sub="uninvested" />
         <Stat
           label="Positions"
-          value={String(a.stats.holdings)}
-          sub={`${a.stats.effectiveHoldings.toFixed(1)} effective`}
+          value={String(d.holdings.length)}
+          sub={
+            a.stats.effectiveHoldings > 0
+              ? `${a.stats.effectiveHoldings.toFixed(1)} effective`
+              : "live book"
+          }
         />
       </div>
 
@@ -128,21 +136,29 @@ export default function PortfolioPage() {
           <div className="grid grid-cols-2 gap-px bg-line md:grid-cols-6">
             <Stat
               label="Expected return"
-              value={fmtSignedPct(a.stats.expectedMonthly, 2)}
-              tone={toneClass(a.stats.expectedMonthly)}
+              value={riskReady ? fmtSignedPct(a.stats.expectedMonthly, 2) : "—"}
+              tone={riskReady ? toneClass(a.stats.expectedMonthly) : ""}
               sub="per month, modelled"
             />
-            <Stat label="Volatility" value={fmtPct(a.stats.volMonthly, 1)} sub="monthly, realised" />
+            <Stat
+              label="Volatility"
+              value={riskReady ? fmtPct(a.stats.volMonthly, 1) : "—"}
+              sub="monthly, realised"
+            />
             <Stat
               label="Return / risk"
-              value={a.stats.sharpe.toFixed(2)}
-              tone={toneClass(a.stats.sharpe)}
+              value={riskReady ? a.stats.sharpe.toFixed(2) : "—"}
+              tone={riskReady ? toneClass(a.stats.sharpe) : ""}
               sub="rf = 0"
             />
             <Stat
               label="Mean correlation"
-              value={a.stats.meanPairwiseCorr.toFixed(3)}
-              sub="between holdings"
+              value={riskReady ? a.stats.meanPairwiseCorr.toFixed(3) : "—"}
+              sub={
+                riskReady
+                  ? "between holdings"
+                  : `${a.stats.analysedHoldings}/${d.holdings.length} with history`
+              }
             />
             <Stat
               label="Largest position"
@@ -153,10 +169,12 @@ export default function PortfolioPage() {
             <Stat label="Gross exposure" value={fmtCompact(a.stats.grossExposure)} />
           </div>
 
-          {!d.historyReady && (
-            <div className="border border-accent/40 bg-accent/5 px-3 py-2 text-xs text-accent">
-              Not enough monthly price history yet for the risk figures to mean much. Advance the
-              clock a few simulated months and they will settle.
+          {!riskReady && (
+            <div className="border border-accent/40 bg-accent/5 px-3 py-2 text-xs leading-relaxed text-accent">
+              Risk figures are unavailable: {a.stats.analysedHoldings} of {d.holdings.length}{" "}
+              holdings have the monthly price history the covariance work needs. Your positions,
+              valuations and P&amp;L below are unaffected — advance the clock a few simulated
+              months and the risk panel fills in.
             </div>
           )}
 

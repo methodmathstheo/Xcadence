@@ -60,10 +60,33 @@ const BUY_RESERVE = 0.5;
  */
 const FUNDAMENTAL_BAND = 0.05;
 /**
- * Standard deviation of aggregate passive flow per round, as a fraction of
- * each market's liquidity parameter.
+ * Aggregate passive flow, as an Ornstein-Uhlenbeck process on a shared level
+ * measured in units of `b`.
+ *
+ * It used to add `N(0, 0.04)·b` to every `q` each round and never take it
+ * back. That is a driftless random walk with no reversion, so its displacement
+ * grows without bound: after N rounds the standard deviation is 0.04·b·sqrt(N),
+ * which at sixty thousand ticks is about 10·b. Since price = vMax·sigma(q/b),
+ * a displacement of 10·b pins the logistic at one end or the other — the market
+ * was guaranteed to walk to zero or to the cap given enough time, and on a long
+ * run it did exactly that, ending with every price at 0 and q at -768·b.
+ *
+ * Now the level reverts toward zero. Stationary standard deviation is
+ * sd = sigma/sqrt(2·kappa) ~ 1.4·b, so q/b stays in a band where the logistic
+ * is actually responsive and passive flow reads as a market-wide tide rather
+ * than a one-way ratchet.
  */
 const PASSIVE_FLOW_SD = 0.04;
+const PASSIVE_REVERSION = 0.0004;
+
+/**
+ * Hard ceiling on one bot's position in one name, as a multiple of that
+ * market's liquidity parameter. `b` is the natural scale: holding 3·b contracts
+ * has already moved the quote by 3 in q/b terms.
+ */
+const MAX_B_MULTIPLE = 3;
+/** Floor under the price used for notional sizing. */
+const PRICE_FLOOR = 0.01;
 
 export function runOrderFlow(w: World, rng: RNG): void {
   if (w.order.length === 0) return;
@@ -142,12 +165,19 @@ export function runOrderFlow(w: World, rng: RNG): void {
  * participant's decision — it is the flow the venue nets against everyone.
  */
 function applyPassiveFlow(w: World, rng: RNG): void {
-  const flow = rng.normal(0, PASSIVE_FLOW_SD);
-  if (Math.abs(flow) < 1e-4) return;
+  const before = w.passiveLevel;
+  const after =
+    before + (-PASSIVE_REVERSION * before + rng.normal(0, PASSIVE_FLOW_SD));
+  const delta = after - before;
+  w.passiveLevel = after;
+
+  if (Math.abs(delta) < 1e-6) return;
   for (const id of w.order) {
     const a = w.artists.get(id)!;
     if (!a.active) continue;
-    a.q += flow * a.b;
+    // Only the change in the level moves the book, so the process is a tide
+    // rather than an accumulation.
+    a.q += delta * a.b;
     w.dirty.add(id);
   }
 }
@@ -219,7 +249,13 @@ function place(
   const a = w.artists.get(artistId)!;
 
   const held = bot.positions.get(artistId)?.qty ?? 0;
-  const maxContracts = (capital * NAME_LIMIT) / Math.max(a.price, 0.01);
+  // Two ceilings. The notional one is what a trader would think in; the depth
+  // one is what stops the book exploding as price approaches zero, where
+  // dividing capital by a floored price permits hundreds of millions of
+  // contracts and each extra short drives the price lower still.
+  const byNotional = (capital * NAME_LIMIT) / Math.max(a.price, PRICE_FLOOR);
+  const byDepth = MAX_B_MULTIPLE * a.b;
+  const maxContracts = Math.min(byNotional, byDepth);
 
   let size = qty;
   if (Math.abs(held + size) > maxContracts) {
@@ -237,7 +273,7 @@ function place(
 }
 
 function clip(capital: number, price: number): number {
-  return (Math.abs(capital) * 0.012) / Math.max(price, 0.01);
+  return (Math.abs(capital) * 0.012) / Math.max(price, PRICE_FLOOR);
 }
 
 function trailingReturn(ring: { t: number; p: number }[], lookback: number): number {

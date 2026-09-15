@@ -60,6 +60,8 @@ export interface AssetStats {
   /** alpha / idiosyncratic vol. The classic ranking for a marginal addition. */
   appraisal: number;
   correlation: number;
+  /** False where the name lacks the history the risk figures need. */
+  hasHistory: boolean;
   weight: number;
   marketValue: number;
 }
@@ -80,6 +82,8 @@ export interface PortfolioStats {
   largestWeight: number;
   largestName: string;
   meanPairwiseCorr: number;
+  /** Held names the risk figures could be computed for, out of all held. */
+  analysedHoldings: number;
   /** Volatility that would remain if every idiosyncratic risk were removed. */
   systematicShare: number;
 }
@@ -135,12 +139,23 @@ export function analysePortfolio(
   cash: number,
   opts: { maxSuggestions?: number; frontierSamples?: number; seed?: number } = {},
 ): PortfolioAnalysis {
+  // Two different questions, and conflating them was a bug.
+  //
+  // `held` is what you own. A position is yours whether or not it has enough
+  // price history to compute a beta for, and whether or not its quote has
+  // collapsed — filtering the held book by the analysable set made the entire
+  // portfolio page report "No positions" while the account plainly held eight.
+  //
+  // `usable` is only what the covariance work can run on.
   const usable = assets.filter((a) => a.returns.length >= MIN_HISTORY && a.price > 0);
+  const analysable = new Set(usable.map((a) => a.artistId));
 
   const expected = (a: AssetInput) =>
-    a.fairValue > 0 ? CONVERGENCE * Math.log(a.fairValue / a.price) : 0;
+    a.fairValue > 0 && a.price > 0
+      ? CONVERGENCE * Math.log(a.fairValue / a.price)
+      : 0;
 
-  const held = usable.filter((a) => Math.abs(a.qty) > 1e-9);
+  const held = assets.filter((a) => Math.abs(a.qty) > 1e-9);
   const marketValues = held.map((a) => a.qty * a.price);
   const gross = marketValues.reduce((s, v) => s + Math.abs(v), 0);
   const net = marketValues.reduce((s, v) => s + v, 0);
@@ -148,17 +163,27 @@ export function analysePortfolio(
 
   // Weights are against equity, so cash dilutes risk exactly as it should.
   const weights = held.map((a, i) => (equity > 0 ? marketValues[i] / equity : 0));
+  // The portfolio return series can only be built from names with history, so
+  // it is weighted over that subset and renormalised.
+  const withHistory = held
+    .map((a, i) => ({ a, w: weights[i] }))
+    .filter((x) => analysable.has(x.a.artistId));
+  const hwSum = withHistory.reduce((s, x) => s + Math.abs(x.w), 0);
   const portfolioReturns = combine(
-    held.map((a) => a.returns),
-    weights,
+    withHistory.map((x) => x.a.returns),
+    withHistory.map((x) => (hwSum > 1e-12 ? x.w / hwSum : 0)),
   );
   const portVar = variance(portfolioReturns);
   const portVol = Math.sqrt(Math.max(0, portVar));
   const portExpected = held.reduce((s, a, i) => s + weights[i] * expected(a), 0);
 
   const statsFor = (a: AssetInput, weight: number, marketValue: number): AssetStats => {
-    const v = variance(a.returns);
-    const cov = portfolioReturns.length >= 3 ? alignedCov(a.returns, portfolioReturns) : 0;
+    const hasHistory = analysable.has(a.artistId);
+    const v = hasHistory ? variance(a.returns) : 0;
+    const cov =
+      hasHistory && portfolioReturns.length >= 3
+        ? alignedCov(a.returns, portfolioReturns)
+        : 0;
     const beta = portVar > 1e-12 ? cov / portVar : 0;
     const mu = expected(a);
     const alpha = mu - beta * portExpected;
@@ -176,7 +201,10 @@ export function analysePortfolio(
       idioVol,
       appraisal: alpha / Math.max(idioVol, MIN_IDIO_VOL),
       correlation:
-        portfolioReturns.length >= 3 ? pearson(a.returns, portfolioReturns) : 0,
+        hasHistory && portfolioReturns.length >= 3
+          ? pearson(a.returns, portfolioReturns)
+          : 0,
+      hasHistory,
       weight,
       marketValue,
     };
@@ -204,16 +232,17 @@ export function analysePortfolio(
   // ---- correlation summary across the held book
   let corrSum = 0;
   let pairs = 0;
-  for (let i = 0; i < held.length; i++) {
-    for (let j = i + 1; j < held.length; j++) {
-      corrSum += pearson(held[i].returns, held[j].returns);
+  const corrPool = held.filter((a) => analysable.has(a.artistId));
+  for (let i = 0; i < corrPool.length; i++) {
+    for (let j = i + 1; j < corrPool.length; j++) {
+      corrSum += pearson(corrPool[i].returns, corrPool[j].returns);
       pairs++;
     }
   }
   const meanCorr = pairs > 0 ? corrSum / pairs : 0;
   const avgVar =
-    held.length > 0
-      ? held.reduce((s, a) => s + variance(a.returns), 0) / held.length
+    corrPool.length > 0
+      ? corrPool.reduce((s, a) => s + variance(a.returns), 0) / corrPool.length
       : 0;
 
   // Effective holdings is 1/sum(w^2) over the *invested* book. Using weights
@@ -239,11 +268,12 @@ export function analysePortfolio(
     largestWeight: largest?.weight ?? 0,
     largestName: largest?.name ?? "—",
     meanPairwiseCorr: meanCorr,
+    analysedHoldings: corrPool.length,
     systematicShare: avgVar > 1e-12 ? Math.min(1, (meanCorr * avgVar) / avgVar) : 0,
   };
 
   // ---- frontier: random long-only mixes over the book plus its best candidates
-  const pool = [...held, ...suggestions.map((s) => usable.find((u) => u.artistId === s.artistId)!)]
+  const pool = [...corrPool, ...suggestions.map((s) => usable.find((u) => u.artistId === s.artistId)!)]
     .filter(Boolean)
     .slice(0, 16);
 
@@ -275,13 +305,13 @@ export function analysePortfolio(
   }
 
   let equalWeight: { vol: number; ret: number } | null = null;
-  if (held.length >= 2) {
-    const w = held.map(() => 1 / held.length);
-    const r = combine(held.map((a) => a.returns), w);
+  if (corrPool.length >= 2) {
+    const w = corrPool.map(() => 1 / corrPool.length);
+    const r = combine(corrPool.map((a) => a.returns), w);
     if (r.length >= 3) {
       equalWeight = {
         vol: Math.sqrt(Math.max(0, variance(r))),
-        ret: held.reduce((acc, a, i) => acc + w[i] * expected(a), 0),
+        ret: corrPool.reduce((acc, a, i) => acc + w[i] * expected(a), 0),
       };
     }
   }
