@@ -58,8 +58,13 @@ export function SurvivorshipTool({
           ))}
         </div>
         <span className="label ml-auto">
-          {data.cohortSize} listed {months}m ago · {data.survivors} still listed ·{" "}
+          {data.cohortSize} listed {data.months}m ago · {data.survivors} still listed ·{" "}
           <span className="text-down">{data.exited} delisted</span>
+          {data.clamped && (
+            <span className="ml-2 text-accent">
+              · run only reaches back {data.months}m
+            </span>
+          )}
         </span>
       </div>
 

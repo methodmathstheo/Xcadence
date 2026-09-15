@@ -93,8 +93,42 @@ export async function POST(req: Request) {
 
     // -------------------------------------------------------- survivorship
     case "survivorship": {
-      const months = Math.min(120, Math.max(3, Number(body.months) || 24));
-      const entryKey = monthKey(w.simMs) - months;
+      const requested = Math.min(120, Math.max(3, Number(body.months) || 24));
+      const nowKey = monthKey(w.simMs);
+
+      // Snapshots exist only at month boundaries the run has actually lived
+      // through. Asking for a lookback that predates the run used to return an
+      // error and an empty page; instead, fall back to the earliest month with
+      // a snapshot and report the horizon actually used.
+      const available = await prisma.pricePoint.findMany({
+        where: { artist: { runId: w.runId } },
+        distinct: ["tMs"],
+        orderBy: { tMs: "asc" },
+        select: { tMs: true },
+      });
+      const monthsWithData = [
+        ...new Set(available.map((p) => monthKey(p.tMs))),
+      ].filter((k) => k < nowKey);
+
+      if (monthsWithData.length === 0) {
+        return NextResponse.json(
+          {
+            error:
+              "No completed month of price history yet. Let the clock run, or jump forward, and this fills in.",
+          },
+          { status: 400 },
+        );
+      }
+
+      const wanted = nowKey - requested;
+      const entryKey = monthsWithData.includes(wanted)
+        ? wanted
+        : monthsWithData.reduce(
+            (best, k) =>
+              Math.abs(k - wanted) < Math.abs(best - wanted) ? k : best,
+            monthsWithData[0],
+          );
+      const months = nowKey - entryKey;
       const entryMs = monthKeyToMs(entryKey);
 
       const entries = await prisma.pricePoint.findMany({
@@ -106,9 +140,12 @@ export async function POST(req: Request) {
         },
       });
       if (entries.length === 0) {
-        return NextResponse.json({
-          error: `No price snapshot at ${months} months back — the run has not been going that long.`,
-        }, { status: 400 });
+        return NextResponse.json(
+          {
+            error: `No price snapshot at ${months} months back — the run has not been going that long.`,
+          },
+          { status: 400 },
+        );
       }
 
       const members: CohortMember[] = entries
@@ -130,7 +167,12 @@ export async function POST(req: Request) {
           };
         });
 
-      return NextResponse.json(survivorship(members, months));
+      return NextResponse.json({
+        ...survivorship(members, months),
+        requestedMonths: requested,
+        // True when the run could not reach back as far as the slider asked.
+        clamped: months !== requested,
+      });
     }
 
     // ----------------------------------------------------- diversification

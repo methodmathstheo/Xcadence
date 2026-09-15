@@ -28,6 +28,8 @@ const FLUSH_EVERY = 5;
 const RING = 720;
 /** Months of fundamentals kept on disk; older rows are pruned at rollover. */
 const MONTH_RETENTION = 180;
+/** Simulated time advanced per persisted slice of a jump. */
+const JUMP_SLICE_MS = 90 * 86_400_000;
 /** Trades kept on disk. The tape is a feed, not an audit log. */
 const TRADE_RETENTION = 20_000;
 
@@ -416,7 +418,8 @@ class Engine {
         realised: w.account.realisedPnl,
       });
 
-      await prisma.$transaction(async (tx) => {
+      await prisma.$transaction(
+        async (tx) => {
         await tx.run.update({
           where: { id: w.runId },
           data: {
@@ -516,7 +519,14 @@ class Engine {
             data: { royalties: p.royalties, monthsPaid: p.monthsPaid, active: p.active },
           });
         }
-      });
+        },
+        // Prisma's interactive transactions default to a 5 second budget. One
+        // month rollover across 250 artists exceeds that on its own, so every
+        // flush was failing and nothing durable was ever written — no month
+        // rows, no price points, no index points. The retry then put the same
+        // oversized batch back and it failed again, indefinitely.
+        { timeout: 120_000, maxWait: 20_000 },
+      );
 
       if (pending.newArtists.length) await this.admitEntrants(w, pending.newArtists);
       if (pending.newOfferings.length) await this.listOfferings(w, pending.newOfferings);
@@ -666,10 +676,19 @@ class Engine {
     const w = await this.ensureLoaded();
     this.suspended = true;
     try {
-      const span = Math.max(0, Math.min(days, 3650)) * MS_DAY;
-      this.step(w, span);
+      let remaining = Math.max(0, Math.min(days, 3650)) * MS_DAY;
+      // Advance in slices, persisting each one. A ten-year jump in a single
+      // step queues something like 30,000 month rows and as many price points
+      // into one transaction; slicing keeps every batch a size SQLite can
+      // actually commit, and means a failure costs one slice rather than the
+      // whole jump.
+      while (remaining > 0) {
+        const slice = Math.min(remaining, JUMP_SLICE_MS);
+        this.step(w, slice);
+        remaining -= slice;
+        await this.flush();
+      }
       this.emit(w);
-      await this.flush();
     } finally {
       this.suspended = false;
     }

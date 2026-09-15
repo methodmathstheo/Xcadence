@@ -24,6 +24,9 @@ export interface CohortMember {
 
 export interface SurvivorshipResult {
   months: number;
+  /** What the slider asked for, where the run could not reach that far back. */
+  requestedMonths?: number;
+  clamped?: boolean;
   cohortSize: number;
   survivors: number;
   exited: number;
