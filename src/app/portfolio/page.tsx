@@ -72,10 +72,12 @@ export default function PortfolioPage() {
   const a = d.analysis;
   const acc = d.account;
   const equity = m.account.equity || acc.equity;
-  // Gate on what the account actually holds, not on whether the risk model
-  // could run. These came apart when a holding lacked price history or its
-  // quote hit zero: the book was full and the page said "No positions".
-  const hasBook = d.holdings.length > 0 || a.stats.holdings > 0;
+  // Real holdings, not the history-gated `a.stats.holdings` — a fresh position
+  // has too little monthly price history for the mean-variance analytics to
+  // use yet, but it is still a real position and must not read as an empty book.
+  const hasBook = d.holdings.length > 0;
+  // Whether the covariance work could actually run, which is a separate
+  // question from whether you hold anything.
   const riskReady = a.stats.analysedHoldings >= 2 && a.stats.volMonthly > 0;
 
   const contribution = d.holdings
@@ -114,6 +116,15 @@ export default function PortfolioPage() {
           }
         />
       </div>
+
+      {hasBook && !riskReady && (
+        <div className="border border-accent/40 bg-accent/5 px-3 py-2 text-xs leading-relaxed text-accent">
+          Risk figures are unavailable: {a.stats.analysedHoldings} of {d.holdings.length}{" "}
+          holdings have the monthly price history the covariance work needs. Positions,
+          valuations and P&amp;L below are unaffected — advance the clock a few simulated months
+          and the risk panel fills in.
+        </div>
+      )}
 
       {!hasBook ? (
         <Panel title="No positions">
@@ -168,15 +179,6 @@ export default function PortfolioPage() {
             />
             <Stat label="Gross exposure" value={fmtCompact(a.stats.grossExposure)} />
           </div>
-
-          {!riskReady && (
-            <div className="border border-accent/40 bg-accent/5 px-3 py-2 text-xs leading-relaxed text-accent">
-              Risk figures are unavailable: {a.stats.analysedHoldings} of {d.holdings.length}{" "}
-              holdings have the monthly price history the covariance work needs. Your positions,
-              valuations and P&amp;L below are unaffected — advance the clock a few simulated
-              months and the risk panel fills in.
-            </div>
-          )}
 
           <div className="grid grid-cols-1 gap-5 xl:grid-cols-[3fr_2fr]">
             <Panel
