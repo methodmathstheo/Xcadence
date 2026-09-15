@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { engine } from "@/lib/engine/engine";
-import { categoryOf, genreFor, isDemo } from "@/lib/sim/names";
+import { categoryOf, isDemo } from "@/lib/sim/names";
+import { genreIsReal, parseGenres, primaryGenre } from "@/lib/music/genre";
 import { fetchOpenProfile } from "@/lib/music/openmusic";
 import { fmtSimDate } from "@/lib/sim/time";
 
@@ -54,7 +55,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   );
 
   const about = {
-    genre: genreFor(a.name),
+    genre: "",
     category: categoryOf(a.name),
     tier: a.tier,
     debutMs: a.debutMs,
@@ -90,6 +91,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       mbid: open.mbid,
       bio: open.bio,
       bioUrl: open.bioUrl,
+      genres: JSON.stringify(open.genres),
       area: open.area,
       beginYear: open.beginYear,
       imageUrl: open.photoUrl,
@@ -106,7 +108,12 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
 
   const releases = safeParse(profile?.releases) ?? [];
 
+  const realGenres = parseGenres(profile?.genres);
+  about.genre = primaryGenre(a.name, profile?.genres);
+
   return NextResponse.json({
+    genres: realGenres,
+    genreIsReal: genreIsReal(profile?.genres),
     source: profile?.found ? "open" : "unavailable",
     about,
     avatar: profile?.imageUrl ?? null,

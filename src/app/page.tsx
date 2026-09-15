@@ -73,7 +73,15 @@ export default function RankingsPage() {
       </section>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_340px]">
-        <Panel title="Rankings" className="min-w-0" bodyClass="max-h-[68vh]">
+        <Panel
+          title="Rankings"
+          className="min-w-0"
+          /* flex + overflow-hidden matter here. With only a max-height the
+             table rendered at its full natural height, spilled out of the
+             panel and painted over everything below it — while the footer got
+             laid out at the 68vh mark, i.e. in the middle of the table. */
+          bodyClass="flex flex-col max-h-[68vh] overflow-hidden"
+        >
           {loaded ? (
             <RankingsTable rows={rows} defaultLimit={60} />
           ) : (

@@ -8,6 +8,9 @@ import { fmtSimDate } from "@/lib/sim/time";
 
 export interface ProfilePayload {
   source: "open" | "unavailable";
+  /** Real tags, most-attested first. Empty where no source had any. */
+  genres: string[];
+  genreIsReal: boolean;
   avatar: string | null;
   identity: {
     mbid: string | null; bio: string | null; bioUrl: string | null;
@@ -59,6 +62,16 @@ export function AboutPanel({ profile }: { profile: ProfilePayload | null }) {
 
   return (
     <Panel title="About" bodyClass="p-4">
+      {profile.genres.length > 0 && (
+        <div className="mb-3 flex flex-wrap gap-1.5">
+          {profile.genres.slice(0, 6).map((g) => (
+            <span key={g} className="label border border-line-2 px-1.5 py-px text-fg-dim">
+              {g}
+            </span>
+          ))}
+        </div>
+      )}
+
       {id?.bio ? (
         <>
           <p className="text-sm leading-relaxed text-fg">{id.bio}</p>
@@ -91,7 +104,11 @@ export function AboutPanel({ profile }: { profile: ProfilePayload | null }) {
       <div className="mt-4 border-t border-line pt-3">
         <div className="label mb-2">In this simulation</div>
         <p className="text-xs leading-relaxed text-fg-dim">
-          Listed {a.debutLabel} in <span className="text-fg">{a.genre}</span>, currently{" "}
+          Listed {a.debutLabel} in{" "}
+          <span className="text-fg" title={profile.genreIsReal ? "From MusicBrainz or Wikidata" : "No genre tag in either source; this is a placeholder"}>
+            {a.genre}
+          </span>
+          , currently{" "}
           <TierBadge tier={a.tier} />. {a.monthsListed} months on the exchange,{" "}
           {fmtListeners(a.listeners)} monthly listeners — {trajectory}
           {a.bestRank ? `, best rank #${a.bestRank}` : ""}.{" "}
@@ -125,7 +142,8 @@ export function AboutPanel({ profile }: { profile: ProfilePayload | null }) {
       )}
 
       <p className="mt-4 border-t border-line pt-3 text-xs leading-relaxed text-fg-mute">
-        The biography, photograph and discography are real, from Wikipedia and MusicBrainz.
+        The biography, photograph, genre tags and discography are real, from Wikipedia,
+        MusicBrainz and Wikidata.
         Everything under <span className="text-fg-dim">In this simulation</span> is not: listener
         counts, royalties, tier, volatility, rank and every event listed are output from a seeded
         random number generator and describe nobody.

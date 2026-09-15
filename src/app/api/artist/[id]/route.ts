@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { engine } from "@/lib/engine/engine";
-import { categoryOf, genreFor } from "@/lib/sim/names";
+import { categoryOf } from "@/lib/sim/names";
+import { primaryGenre, parseGenres } from "@/lib/music/genre";
 import { SimulatedDataProvider } from "@/lib/data/simulated";
 import { dcf, discountSensitivity, estimateInputs } from "@/lib/quant/dcf";
 import { DEFAULT_DISCOUNT } from "@/lib/sim/constants";
@@ -28,6 +29,12 @@ export async function GET(
   if (!a) return NextResponse.json({ error: "no such artist" }, { status: 404 });
 
   const discount = Number(new URL(req.url).searchParams.get("r")) || DEFAULT_DISCOUNT;
+  const profileGenres = (
+    await prisma.artistProfile.findUnique({
+      where: { artistId: id },
+      select: { genres: true },
+    })
+  )?.genres;
   const provider = new SimulatedDataProvider(w.runId);
 
   const [history, events, prices, trades] = await Promise.all([
@@ -66,7 +73,8 @@ export async function GET(
     artist: {
       id: a.id,
       name: a.name,
-      genre: genreFor(a.name),
+      genre: primaryGenre(a.name, profileGenres),
+      genres: parseGenres(profileGenres),
       category: categoryOf(a.name),
       tier: a.tier,
       active: a.active,

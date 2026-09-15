@@ -76,6 +76,9 @@ export function toSummary(a: ArtistRow, rank: number): ArtistSummary {
     id: a.id,
     name: a.name,
     genre: genreFor(a.name),
+    // The provider maps a bare DB row and has no profile join; real genres are
+    // attached by the API routes, which do.
+    genres: [],
     category: categoryOf(a.name),
     tier: a.tier,
     active: a.active,

@@ -41,13 +41,18 @@ export const warmState: WarmState = (g.__cadenceWarm ??= {
 export async function warmProfiles(runId: number): Promise<void> {
   if (warmState.running || isDemo()) return;
 
+  // Rows written before genres were fetched have a profile but no genres, so
+  // they are picked up again rather than left permanently without one.
   const artists = await prisma.artist.findMany({
-    where: { runId, profile: null },
+    where: {
+      runId,
+      OR: [{ profile: null }, { profile: { genres: null } }],
+    },
     select: { id: true, name: true },
     orderBy: { listeners: "desc" },
   });
 
-  const already = await prisma.artistProfile.count();
+  const already = await prisma.artistProfile.count({ where: { genres: { not: null } } });
   if (artists.length === 0) {
     warmState.total = already;
     warmState.done = already;
@@ -73,13 +78,27 @@ export async function warmProfiles(runId: number): Promise<void> {
           mbid: open.mbid,
           bio: open.bio,
           bioUrl: open.bioUrl,
+          genres: JSON.stringify(open.genres),
           area: open.area,
           beginYear: open.beginYear,
           imageUrl: open.photoUrl,
           releases: JSON.stringify(open.releases),
           found: open.found,
         },
-        update: {},
+        update: {
+          genres: JSON.stringify(open.genres),
+          // Refresh the rest while we are here; a profile is only re-fetched
+          // when something was missing from it.
+          mbid: open.mbid,
+          bio: open.bio,
+          bioUrl: open.bioUrl,
+          area: open.area,
+          beginYear: open.beginYear,
+          imageUrl: open.photoUrl,
+          releases: JSON.stringify(open.releases),
+          found: open.found,
+          fetchedAt: new Date(),
+        },
       });
       if (open.photoUrl) warmState.found++;
       warmState.lastName = a.name;

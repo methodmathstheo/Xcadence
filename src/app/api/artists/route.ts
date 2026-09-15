@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { engine } from "@/lib/engine/engine";
 import { SimulatedDataProvider } from "@/lib/data/simulated";
 import { dcf, estimateInputs } from "@/lib/quant/dcf";
-import { categoryOf, genreFor } from "@/lib/sim/names";
+import { categoryOf } from "@/lib/sim/names";
+import { primaryGenre, parseGenres } from "@/lib/music/genre";
+import { prisma } from "@/lib/db";
 import type { ArtistSummary } from "@/lib/data/provider";
 
 export const runtime = "nodejs";
@@ -18,6 +20,13 @@ export async function GET(req: Request) {
   const lite = url.searchParams.get("lite") === "1";
 
   const w = await engine.ensureLoaded();
+
+  // One query for the whole roster's real genres rather than one per row.
+  const profiles = await prisma.artistProfile.findMany({
+    select: { artistId: true, genres: true },
+  });
+  const genreBy = new Map(profiles.map((p) => [p.artistId, p.genres]));
+
   const rows: ArtistSummary[] = [];
   for (const id of w.order) {
     const a = w.artists.get(id)!;
@@ -28,7 +37,8 @@ export async function GET(req: Request) {
     rows.push({
       id: a.id,
       name: a.name,
-      genre: genreFor(a.name),
+      genre: primaryGenre(a.name, genreBy.get(a.id)),
+      genres: parseGenres(genreBy.get(a.id)),
       category: categoryOf(a.name),
       tier: a.tier,
       active: a.active,

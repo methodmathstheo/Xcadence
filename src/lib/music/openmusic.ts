@@ -19,6 +19,7 @@ const UA = "xcadence/0.1 ( royalty-exchange-simulation; local use )";
 const MB = "https://musicbrainz.org/ws/2";
 const WIKI = "https://en.wikipedia.org/api/rest_v1";
 const CAA = "https://coverartarchive.org";
+const WIKIDATA = "https://www.wikidata.org/w/api.php";
 
 /** MusicBrainz rate limit: one request per second, sustained. */
 const MB_INTERVAL_MS = 1100;
@@ -60,6 +61,8 @@ export interface OpenRelease {
 
 export interface OpenProfile {
   mbid: string | null;
+  /** Real genre tags, most-attested first. Empty where no source has any. */
+  genres: string[];
   disambiguation: string | null;
   area: string | null;
   beginYear: number | null;
@@ -155,6 +158,64 @@ async function fetchReleases(mbid: string): Promise<OpenRelease[]> {
   return out.slice(0, 48);
 }
 
+/**
+ * Genres, from MusicBrainz where the community has tagged the artist.
+ *
+ * Coverage is good but partial — Kendrick Lamar carries "conscious hip hop",
+ * "jazz rap" and "west coast hip hop"; SZA carries nothing at all. Ordered by
+ * vote count so the most-attested tag leads.
+ */
+async function fetchMbGenres(mbid: string): Promise<string[]> {
+  const data = await throttle(() =>
+    getJson<{ genres?: { name: string; count: number }[] }>(
+      `${MB}/artist/${mbid}?inc=genres&fmt=json`,
+    ),
+  );
+  return (data?.genres ?? [])
+    .sort((a, b) => (b.count ?? 0) - (a.count ?? 0))
+    .map((g) => g.name);
+}
+
+/**
+ * Wikidata "genre" (P136), used only where MusicBrainz has no tags.
+ *
+ * Two calls: the artist's claims, then one batched label lookup for whatever
+ * entity ids come back. Not on the MusicBrainz throttle — different service.
+ */
+async function fetchWikidataGenres(title: string): Promise<string[]> {
+  const claims = await getJson<{
+    entities?: Record<string, { claims?: Record<string, { mainsnak?: { datavalue?: { value?: { id?: string } } } }[]> }>;
+  }>(
+    `${WIKIDATA}?action=wbgetentities&sites=enwiki&titles=${encodeURIComponent(title)}` +
+      `&props=claims&format=json&origin=*`,
+  );
+  if (!claims?.entities) return [];
+
+  const ids: string[] = [];
+  for (const [qid, entity] of Object.entries(claims.entities)) {
+    if (qid.startsWith("-")) continue; // no such entity
+    for (const c of entity.claims?.P136 ?? []) {
+      const id = c.mainsnak?.datavalue?.value?.id;
+      if (id) ids.push(id);
+    }
+  }
+  if (ids.length === 0) return [];
+
+  const labels = await getJson<{
+    entities?: Record<string, { labels?: { en?: { value?: string } } }>;
+  }>(
+    `${WIKIDATA}?action=wbgetentities&ids=${ids.slice(0, 8).join("|")}` +
+      `&props=labels&languages=en&format=json&origin=*`,
+  );
+  if (!labels?.entities) return [];
+
+  // Preserve the order the claims came back in rather than object key order.
+  return ids
+    .slice(0, 8)
+    .map((id) => labels.entities?.[id]?.labels?.en?.value)
+    .filter((v): v is string => Boolean(v));
+}
+
 /** Wikipedia summary: biography extract plus a freely-licensed photograph. */
 async function fetchWiki(name: string) {
   const title = encodeURIComponent(name.replace(/\s+/g, "_"));
@@ -179,8 +240,12 @@ export async function fetchOpenProfile(name: string): Promise<OpenProfile> {
   const [mb, wiki] = await Promise.all([findMbArtist(name), fetchWiki(name)]);
   const releases = mb ? await fetchReleases(mb.id) : [];
 
+  let genres = mb ? await fetchMbGenres(mb.id) : [];
+  if (genres.length === 0) genres = await fetchWikidataGenres(name);
+
   return {
     mbid: mb?.id ?? null,
+    genres,
     disambiguation: mb?.disambiguation ?? null,
     area: mb?.area?.name ?? mb?.country ?? null,
     beginYear: mb?.["life-span"]?.begin

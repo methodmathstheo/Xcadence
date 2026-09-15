@@ -10,6 +10,8 @@ export interface ArtistSummary {
   id: number;
   name: string;
   genre: string;
+  /** Real tags from MusicBrainz or Wikidata. Empty where neither has any. */
+  genres: string[];
   /** Which chart the artist trades on. */
   category: "rap" | "rnb";
   tier: string;

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { engine } from "@/lib/engine/engine";
-import { categoryOf, genreFor } from "@/lib/sim/names";
+import { categoryOf } from "@/lib/sim/names";
+import { primaryGenre, parseGenres } from "@/lib/music/genre";
 import { buildBook, buildCandles } from "@/lib/sim/orderbook";
 import { dcf, estimateInputs } from "@/lib/quant/dcf";
 import { maxBuyForCredits } from "@/lib/sim/lmsr";
@@ -35,10 +36,11 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     }),
     prisma.artistProfile.findUnique({
       where: { artistId: id },
-      select: { imageUrl: true },
+      select: { imageUrl: true, genres: true },
     }),
   ]);
 
+  const profileGenres = profile?.genres;
   const ring = w.priceRing.get(id) ?? [];
   const series = [
     ...stored.map((p) => ({ t: p.tMs, p: p.price })),
@@ -61,7 +63,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     market: {
       id: a.id,
       name: a.name,
-      genre: genreFor(a.name),
+      genre: primaryGenre(a.name, profileGenres),
+      genres: parseGenres(profileGenres),
       category: categoryOf(a.name),
       tier: a.tier,
       active: a.active,
