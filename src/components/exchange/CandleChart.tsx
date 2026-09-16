@@ -15,8 +15,8 @@ import type { Candle } from "@/lib/sim/orderbook";
 export function CandleChart({
   candles,
   height = 380,
-  up = "#26a69a",
-  down = "#ef5350",
+  up = "#3fd39a",
+  down = "#f2647c",
 }: {
   candles: Candle[];
   height?: number;
@@ -95,11 +95,11 @@ export function CandleChart({
           const yy = y(p);
           return (
             <g key={i}>
-              <line x1={0} x2={plotW} y1={yy} y2={yy} stroke="#1f242d" strokeWidth={1} />
+              <line x1={0} x2={plotW} y1={yy} y2={yy} stroke="#2e3348" strokeWidth={1} />
               <text
                 x={plotW + 8}
                 y={yy + 3.5}
-                fill="#808b99"
+                fill="#7f8499"
                 fontSize={10}
                 fontFamily="var(--font-mono-ui)"
               >
@@ -158,13 +158,13 @@ export function CandleChart({
               />
             );
           })}
-          <text x={plotW + 8} y={10} fill="#808b99" fontSize={9} fontFamily="var(--font-mono-ui)">
+          <text x={plotW + 8} y={10} fill="#7f8499" fontSize={9} fontFamily="var(--font-mono-ui)">
             VOL
           </text>
           <text
             x={plotW + 8}
             y={volH}
-            fill="#808b99"
+            fill="#7f8499"
             fontSize={9}
             fontFamily="var(--font-mono-ui)"
           >
@@ -179,7 +179,7 @@ export function CandleChart({
             x2={plotW}
             y1={y(candles[candles.length - 1].c)}
             y2={y(candles[candles.length - 1].c)}
-            stroke="#f0b429"
+            stroke="#8f84d3"
             strokeDasharray="3 3"
             strokeWidth={1}
           />
@@ -188,12 +188,12 @@ export function CandleChart({
             y={y(candles[candles.length - 1].c) - 8}
             width={62}
             height={16}
-            fill="#f0b429"
+            fill="#8f84d3"
           />
           <text
             x={plotW + 6}
             y={y(candles[candles.length - 1].c) + 3.5}
-            fill="#07080a"
+            fill="#161825"
             fontSize={10}
             fontWeight={600}
             fontFamily="var(--font-mono-ui)"
@@ -209,7 +209,7 @@ export function CandleChart({
             x2={hover * step + step / 2}
             y1={0}
             y2={priceH}
-            stroke="#4b5565"
+            stroke="#3d4359"
             strokeDasharray="2 3"
             strokeWidth={1}
           />

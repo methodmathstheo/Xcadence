@@ -108,7 +108,7 @@ export function AdverseTool({
                 strokeDasharray="3 3"
                 label={{
                   value: "universe average quality",
-                  fill: "#67707e",
+                  fill: "#7f8499",
                   fontSize: 10,
                   position: "insideTopLeft",
                 }}

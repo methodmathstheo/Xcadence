@@ -212,7 +212,7 @@ export default function PortfolioPage() {
                       height={20}
                       iconType="plainline"
                       formatter={(v) => (
-                        <span style={{ fontSize: 11, color: "#98a1b0" }}>
+                        <span style={{ fontSize: 11, color: "#b3b6c8" }}>
                           {v === "book" ? "YOUR BOOK" : "INDEX"}
                         </span>
                       )}
@@ -251,7 +251,7 @@ export default function PortfolioPage() {
                       dataKey="vol"
                       name="risk"
                       tickFormatter={(v) => fmtPct(Number(v), 0)}
-                      label={{ value: "monthly volatility", fill: "#67707e", fontSize: 10, dy: 14 }}
+                      label={{ value: "monthly volatility", fill: "#7f8499", fontSize: 10, dy: 14 }}
                       {...axisProps}
                     />
                     <YAxis
@@ -270,7 +270,7 @@ export default function PortfolioPage() {
                     />
                     <Scatter data={a.frontier.filter((f) => !f.current)} isAnimationActive={false}>
                       {a.frontier.filter((f) => !f.current).map((_, i) => (
-                        <Cell key={i} fill="#2f3947" />
+                        <Cell key={i} fill="#3d4359" />
                       ))}
                     </Scatter>
                     <Scatter
@@ -374,7 +374,7 @@ export default function PortfolioPage() {
                       type="category"
                       dataKey="name"
                       width={120}
-                      tick={{ fill: "#98a1b0", fontSize: 11 }}
+                      tick={{ fill: "#b3b6c8", fontSize: 11 }}
                       tickLine={false}
                       axisLine={false}
                     />

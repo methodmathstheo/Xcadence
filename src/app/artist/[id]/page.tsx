@@ -176,7 +176,7 @@ export default function ArtistPage({ params }: { params: Promise<{ id: string }>
           <SeriesChart
             data={priceSeries}
             height={220}
-            color="#f0b429"
+            color="#8f84d3"
             format={(x) => fmtCredits(x, 1)}
             label="price"
           />
@@ -186,7 +186,7 @@ export default function ArtistPage({ params }: { params: Promise<{ id: string }>
           <SeriesChart
             data={d.history.map((h) => ({ t: h.dateMs, v: h.listeners }))}
             height={220}
-            color="#4cc4f0"
+            color="#7ea8e0"
             area
             format={fmtListeners}
             label="listeners"
@@ -199,7 +199,7 @@ export default function ArtistPage({ params }: { params: Promise<{ id: string }>
           <SeriesChart
             data={d.history.map((h) => ({ t: h.dateMs, v: h.rank }))}
             height={170}
-            color="#a78bfa"
+            color="#b3a9e8"
             reversed
             format={(x) => `#${Math.round(x)}`}
             label="rank"

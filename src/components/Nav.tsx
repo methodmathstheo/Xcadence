@@ -20,8 +20,7 @@ export function Nav() {
   return (
     <nav className="flex items-center gap-0 border-b border-line bg-ink px-4">
       <Link href="/" className="mr-6 flex items-center gap-2.5 py-2">
-        <Logo size={15} />
-        <span className="label hidden sm:inline">Royalty Exchange</span>
+        <Logo size={15} showTagline />
       </Link>
       <span
         className="label mr-4 border border-accent/40 px-1.5 py-px text-accent"

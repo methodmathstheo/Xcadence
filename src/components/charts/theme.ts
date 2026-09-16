@@ -1,15 +1,15 @@
 /** Shared Recharts styling. Charts here are for reading values, not decoration. */
 export const CHART = {
-  grid: "#1b1f27",
-  axis: "#67707e",
-  line: "#4cc4f0",
-  line2: "#f0b429",
-  up: "#3ddc97",
-  down: "#ff5d5d",
-  violet: "#a78bfa",
-  band: "#4cc4f0",
-  accent: "#f0b429",
-  cyan: "#4cc4f0",
+  grid: "#2e3348",
+  axis: "#7f8499",
+  line: "#8f84d3",   /* Accent — primary series */
+  line2: "#7ea8e0",  /* cool secondary, distinguishable at 1px */
+  up: "#3fd39a",
+  down: "#f2647c",
+  violet: "#b3a9e8",
+  band: "#7ea8e0",
+  accent: "#8f84d3",
+  cyan: "#7ea8e0",
 } as const;
 
 export const axisProps = {
@@ -21,12 +21,12 @@ export const axisProps = {
 
 export const tooltipStyle = {
   contentStyle: {
-    background: "#0d0f13",
-    border: "1px solid #262b35",
+    background: "#1d2031",
+    border: "1px solid #3d4359",
     borderRadius: 0,
     fontSize: 11,
     fontFamily: "var(--font-mono-ui)",
   },
-  labelStyle: { color: "#98a1b0" },
-  itemStyle: { color: "#d8dce4" },
+  labelStyle: { color: "#b3b6c8" },
+  itemStyle: { color: "#e9e9ed" },
 } as const;

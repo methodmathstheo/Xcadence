@@ -73,7 +73,7 @@ export function SurvivalTool({
                 height={22}
                 iconType="plainline"
                 formatter={(v) => (
-                  <span style={{ fontSize: 10, color: "#98a1b0", textTransform: "uppercase" }}>{v}</span>
+                  <span style={{ fontSize: 10, color: "#b3b6c8", textTransform: "uppercase" }}>{v}</span>
                 )}
               />
               {data.curves.map((c) => (

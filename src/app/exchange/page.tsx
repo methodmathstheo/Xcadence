@@ -16,8 +16,8 @@ import { fmtClock, fmtSimDate } from "@/lib/sim/time";
 import type { ArtistSummary } from "@/lib/data/provider";
 import type { Book, Candle } from "@/lib/sim/orderbook";
 
-const UP = "#26a69a";
-const DOWN = "#ef5350";
+const UP = "#3fd39a";
+const DOWN = "#f2647c";
 
 interface MarketPayload {
   market: {
@@ -127,9 +127,9 @@ function Terminal() {
   const affordable = !preview || preview.cost <= (data?.account.cash ?? 0) + 1e-9;
 
   return (
-    <div className="flex h-[calc(100vh-118px)] min-h-[640px] flex-col bg-[#0b0e11] text-fg">
+    <div className="flex h-[calc(100vh-118px)] min-h-[640px] flex-col bg-[#161825] text-fg">
       {/* ---- instrument header */}
-      <header className="flex flex-wrap items-center gap-x-8 gap-y-2 border-b border-line bg-[#0f1418] px-4 py-2.5">
+      <header className="flex flex-wrap items-center gap-x-8 gap-y-2 border-b border-line bg-[#1d2031] px-4 py-2.5">
         {mk ? (
           <>
             <div className="flex items-center gap-3">
@@ -183,13 +183,13 @@ function Terminal() {
 
       <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[240px_1fr_248px_260px]">
         {/* ---- markets */}
-        <aside className="flex min-h-0 flex-col border-r border-line bg-[#0f1418]">
+        <aside className="flex min-h-0 flex-col border-r border-line bg-[#1d2031]">
           <div className="border-b border-line p-2">
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search markets"
-              className="w-full border border-line-2 bg-[#0b0e11] px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
+              className="w-full border border-line-2 bg-[#161825] px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
             />
           </div>
           <div className="flex items-center justify-between px-3 py-1 text-[10px] uppercase tracking-wider text-fg-mute">
@@ -213,7 +213,7 @@ function Terminal() {
                     <span className="num shrink-0">{fmtCredits(q.price)}</span>
                     <span
                       className="num w-12 shrink-0 text-right"
-                      style={{ color: chg > 0 ? UP : chg < 0 ? DOWN : "#808b99" }}
+                      style={{ color: chg > 0 ? UP : chg < 0 ? DOWN : "#7f8499" }}
                     >
                       {chg === 0 ? "—" : fmtSignedPct(chg, 1)}
                     </span>
@@ -229,14 +229,14 @@ function Terminal() {
           <div className="min-h-0 flex-1">
             {data ? <CandleChart candles={data.candles} height={420} /> : null}
           </div>
-          <div className="border-t border-line bg-[#0f1418]">
+          <div className="border-t border-line bg-[#1d2031]">
             <div className="flex gap-px bg-line">
               {(["trades", "position"] as const).map((t) => (
                 <button
                   key={t}
                   onClick={() => setTab(t)}
                   className={`px-4 py-1.5 text-[11px] capitalize ${
-                    tab === t ? "bg-[#0f1418] text-accent" : "bg-[#0b0e11] text-fg-mute hover:text-fg"
+                    tab === t ? "bg-[#1d2031] text-accent" : "bg-[#161825] text-fg-mute hover:text-fg"
                   }`}
                 >
                   {t === "trades" ? "Market trades" : "Your position"}
@@ -290,7 +290,7 @@ function Terminal() {
         </section>
 
         {/* ---- book */}
-        <aside className="min-h-0 overflow-auto border-r border-line bg-[#0f1418]">
+        <aside className="min-h-0 overflow-auto border-r border-line bg-[#1d2031]">
           {data ? (
             <OrderBook
               book={data.book}
@@ -311,7 +311,7 @@ function Terminal() {
         </aside>
 
         {/* ---- ticket */}
-        <aside className="flex min-h-0 flex-col overflow-auto bg-[#0f1418]">
+        <aside className="flex min-h-0 flex-col overflow-auto bg-[#1d2031]">
           <div className="grid grid-cols-2 gap-px bg-line">
             {(["BUY", "SELL"] as const).map((s) => (
               <button
@@ -319,8 +319,8 @@ function Terminal() {
                 onClick={() => setSide(s)}
                 className="py-2 text-xs font-medium"
                 style={{
-                  background: side === s ? (s === "BUY" ? `${UP}22` : `${DOWN}22`) : "#0b0e11",
-                  color: side === s ? (s === "BUY" ? UP : DOWN) : "#808b99",
+                  background: side === s ? (s === "BUY" ? `${UP}22` : `${DOWN}22`) : "#161825",
+                  color: side === s ? (s === "BUY" ? UP : DOWN) : "#7f8499",
                 }}
               >
                 {s}
@@ -335,7 +335,7 @@ function Terminal() {
                 value={size}
                 onChange={(e) => setSize(e.target.value.replace(/[^\d.]/g, ""))}
                 inputMode="decimal"
-                className="num w-full border border-line-2 bg-[#0b0e11] px-2 py-2 text-sm focus:border-accent focus:outline-none"
+                className="num w-full border border-line-2 bg-[#161825] px-2 py-2 text-sm focus:border-accent focus:outline-none"
               />
             </div>
 
@@ -379,7 +379,7 @@ function Terminal() {
             <button
               onClick={submit}
               disabled={!preview || !affordable || status === "working"}
-              className="py-2.5 text-xs font-semibold text-[#07080a] disabled:cursor-not-allowed disabled:opacity-40"
+              className="py-2.5 text-xs font-semibold text-[#161825] disabled:cursor-not-allowed disabled:opacity-40"
               style={{ background: side === "BUY" ? UP : DOWN }}
             >
               {status === "working"
@@ -417,7 +417,7 @@ function Field({ label, value, sub }: { label: string; value: string; sub?: stri
 
 function Cell({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-[#0f1418] px-3 py-2">
+    <div className="bg-[#1d2031] px-3 py-2">
       <div className="label">{label}</div>
       <div className="num mt-0.5 text-xs text-fg">{value}</div>
     </div>

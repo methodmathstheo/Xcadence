@@ -3,8 +3,8 @@
 import { fmtCompact, fmtCredits } from "@/lib/format";
 import type { Book } from "@/lib/sim/orderbook";
 
-const UP = "#26a69a";
-const DOWN = "#ef5350";
+const UP = "#3fd39a";
+const DOWN = "#f2647c";
 
 /**
  * Depth ladder in the familiar two-column form.

@@ -1,19 +1,30 @@
 @import "tailwindcss";
 
 @theme {
-  --color-ink: #07080a;
-  --color-panel: #0d0f13;
-  --color-panel-2: #12151b;
-  --color-line: #1f242d;
-  --color-line-2: #2c3340;
-  --color-fg: #e6e9ef;
-  --color-fg-dim: #aab3c0;
-  --color-fg-mute: #808b99;
-  --color-up: #3ddc97;
-  --color-down: #ff5d5d;
-  --color-accent: #f0b429;
-  --color-cyan: #4cc4f0;
-  --color-violet: #a78bfa;
+  /* Xcadence — logo direction 1a, "ledger bars".
+     Ground, Ink, Accent and Neutral are sampled from the brand sheet; the
+     panel and line steps are interpolated from Ground so surfaces separate
+     without introducing a colour the brand does not have. */
+  --color-ink: #161825;        /* Ground — page base */
+  --color-panel: #1d2031;
+  --color-panel-2: #24283a;
+  --color-line: #2e3348;
+  --color-line-2: #3d4359;
+
+  --color-fg: #e9e9ed;         /* Ink */
+  --color-fg-dim: #b3b6c8;     /* Neutral */
+  --color-fg-mute: #7f8499;
+
+  --color-accent: #8f84d3;     /* Accent */
+  --color-violet: #b3a9e8;     /* Accent, lifted — second chart series */
+  --color-cyan: #7ea8e0;       /* third series, kept in the same cool family */
+
+  /* Direction stays green/red. It is the one place convention beats palette:
+     a trader reads colour before shape, and recolouring up and down into the
+     brand would cost more in legibility than it gains in consistency. Both are
+     pulled toward the violet ground so they sit in the same picture. */
+  --color-up: #3fd39a;
+  --color-down: #f2647c;
 
   --font-mono: var(--font-mono-ui), ui-monospace, SFMono-Regular, monospace;
   --font-sans: var(--font-display), ui-sans-serif, system-ui, sans-serif;

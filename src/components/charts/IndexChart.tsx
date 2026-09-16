@@ -82,7 +82,7 @@ export function IndexChart({ height = 200 }: { height?: number }) {
             height={20}
             iconType="plainline"
             formatter={(v) => (
-              <span style={{ fontSize: 10, color: "#98a1b0" }}>
+              <span style={{ fontSize: 10, color: "#b3b6c8" }}>
                 {v === "equal" ? "EQUAL-WEIGHTED" : "LISTENER-WEIGHTED"}
               </span>
             )}

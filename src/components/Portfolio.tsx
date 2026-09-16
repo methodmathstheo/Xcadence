@@ -228,7 +228,7 @@ export function PortfolioPanels({ data, onPick }: { data: PortfolioData; onPick:
           <SeriesChart
             data={data.equity.map((e) => ({ t: e.tMs, v: e.equity }))}
             height={300}
-            color="#3ddc97"
+            color="#3fd39a"
             area
             format={(v) => fmtCompact(v)}
             label="equity"
