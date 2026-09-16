@@ -17,7 +17,7 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        source: "/:icon(favicon.ico|icon.png|apple-icon.png|icon-192.png|icon-512.png|icon-512-maskable.png)",
+        source: "/:icon(favicon.ico|favicon-16.png|favicon-32.png|apple-touch-icon.png|apple-icon.png|mask-icon.svg|icon-192.png|icon-512.png|icon-512-maskable.png)",
         headers: [
           {
             key: "Cache-Control",

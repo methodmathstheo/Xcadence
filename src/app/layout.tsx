@@ -29,7 +29,23 @@ export const metadata: Metadata = {
   title: "xcadence — royalty exchange",
   // Names the installed app on a home screen, where the full title is too long.
   applicationName: "xcadence",
-  appleWebApp: { capable: true, title: "xcadence", statusBarStyle: "black-translucent" },
+  appleWebApp: { capable: true, title: "Xcadence", statusBarStyle: "black-translucent" },
+  /**
+   * Declared explicitly rather than left to the file conventions, because
+   * Safari chooses a tab icon by declared size and ignores sizes it does not
+   * expect — the auto-generated link advertised 48x48, which it skipped. PNG at
+   * 16 and 32 is what it actually looks for, and mask-icon is what it uses for
+   * a pinned tab.
+   */
+  icons: {
+    icon: [
+      { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon.ico", sizes: "any" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    other: [{ rel: "mask-icon", url: "/mask-icon.svg", color: "#8f84d3" }],
+  },
   description: "A live simulated exchange in artist royalty shares.",
 };
 
