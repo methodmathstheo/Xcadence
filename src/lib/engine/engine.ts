@@ -33,6 +33,18 @@ const MONTH_RETENTION = 180;
 const JUMP_SLICE_MS = 90 * 86_400_000;
 /** Trades kept on disk. The tape is a feed, not an audit log. */
 const TRADE_RETENTION = 20_000;
+/**
+ * Rows kept in the other append-only tables.
+ *
+ * These had no ceiling at all, which filled a 500MB volume and wedged the
+ * deployment: a full SQLite file fails every write, so the clock went on
+ * ticking against a database that could no longer record anything. The
+ * figures are well above what any page reads — charts ask for 800 points, the
+ * covariance work for 900 closes per artist — so they bound growth without
+ * touching anything the UI can reach.
+ */
+const PRICE_POINT_RETENTION = 400_000;
+const SERIES_RETENTION = 20_000;
 
 /** A live stream connection. `userId` is null for a signed-out viewer, who gets the market but no book. */
 type Subscriber = { userId: number | null; send: (frame: StreamFrame) => void };
@@ -715,6 +727,55 @@ class Engine {
         monthKey: { lt: w.lastMonthKey - MONTH_RETENTION },
       },
     });
+
+    // Price points are not scoped to a run — they hang off the artist — so
+    // this trims globally rather than per run.
+    await trimById(
+      PRICE_POINT_RETENTION,
+      (skip) =>
+        prisma.pricePoint.findMany({
+          orderBy: { id: "desc" }, skip, take: 1, select: { id: true },
+        }),
+      (id) => prisma.pricePoint.deleteMany({ where: { id: { lte: id } } }),
+      () => prisma.pricePoint.count(),
+    );
+    await trimById(
+      SERIES_RETENTION,
+      (skip) =>
+        prisma.indexPoint.findMany({
+          where: { runId: w.runId },
+          orderBy: { id: "desc" }, skip, take: 1, select: { id: true },
+        }),
+      (id) => prisma.indexPoint.deleteMany({ where: { runId: w.runId, id: { lte: id } } }),
+      () => prisma.indexPoint.count({ where: { runId: w.runId } }),
+    );
+    await trimById(
+      SERIES_RETENTION,
+      (skip) =>
+        prisma.marketEvent.findMany({
+          where: { runId: w.runId },
+          orderBy: { id: "desc" }, skip, take: 1, select: { id: true },
+        }),
+      (id) => prisma.marketEvent.deleteMany({ where: { runId: w.runId, id: { lte: id } } }),
+      () => prisma.marketEvent.count({ where: { runId: w.runId } }),
+    );
+
+    // Equity points are per account, so the ceiling is per account too —
+    // trimming the table as a whole would delete a quiet trader's entire
+    // curve to make room for a busy one's.
+    for (const book of w.books.values()) {
+      const where = { runId: w.runId, userId: book.userId };
+      await trimById(
+        SERIES_RETENTION,
+        (skip) =>
+          prisma.equityPoint.findMany({
+            where, orderBy: { id: "desc" }, skip, take: 1, select: { id: true },
+          }),
+        (id) => prisma.equityPoint.deleteMany({ where: { ...where, id: { lte: id } } }),
+        () => prisma.equityPoint.count({ where }),
+      );
+    }
+
     const count = await prisma.trade.count({ where: { runId: w.runId } });
     if (count > TRADE_RETENTION * 1.25) {
       const cutoff = await prisma.trade.findMany({
@@ -865,6 +926,24 @@ export function accountFrame(w: World, book: Book): AccountFrame {
     unrealisedPnl: eq.unrealised,
     sessionPnl: eq.equity - book.account.sessionStartEquity,
   };
+}
+
+/**
+ * Trim an append-only table to its newest `keep` rows.
+ *
+ * Finds the oldest id worth keeping by offset, then deletes everything at or
+ * below it in one statement. Only runs once the table is 25% past its ceiling,
+ * so the offset scan is amortised rather than paid on every month rollover.
+ */
+async function trimById(
+  keep: number,
+  cutoff: (skip: number) => Promise<{ id: number }[]>,
+  remove: (id: number) => Promise<unknown>,
+  total: () => Promise<number>,
+) {
+  if ((await total()) <= keep * 1.25) return;
+  const [edge] = await cutoff(keep);
+  if (edge) await remove(edge.id);
 }
 
 export function recomputeIndex(w: World) {

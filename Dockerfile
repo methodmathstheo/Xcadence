@@ -6,20 +6,20 @@
 # requests, which stops the clock, and their filesystems are ephemeral, which
 # loses the run.
 
-FROM node:22-alpine AS deps
+FROM node:24-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY prisma ./prisma
 RUN npm ci
 
-FROM node:22-alpine AS builder
+FROM node:24-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV DATABASE_URL="file:/data/xcadence.db"
 RUN npx prisma generate && npm run build
 
-FROM node:22-alpine AS runner
+FROM node:24-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
@@ -62,4 +62,13 @@ EXPOSE 3000
 # Starts as root only long enough to take ownership of the mounted volume — a
 # managed mount arrives root-owned and Prisma cannot create the database in a
 # directory it cannot write — then drops to `app` for migrations and the server.
-CMD ["sh", "-c", "chown -R app:app /data && exec su-exec app sh -c 'cd /migrator && node node_modules/prisma/build/index.js migrate deploy && cd /app && node server.js'"]
+# Reclaim runs before the migration, not after: a full volume fails every
+# write, `migrate deploy` included, so a deploy could not land until there was
+# room for it. `node:sqlite` is why this image is on Node 24 — it is stable
+# there and flag-gated on 22.
+#
+# Its failure is tolerated on purpose. Housekeeping must never be the reason
+# the venue does not come up: if it cannot run, the migration and the server
+# still get their turn and the worst case is the disk problem it was meant to
+# clear.
+CMD ["sh", "-c", "chown -R app:app /data && exec su-exec app sh -c 'cd /migrator && { node prisma/reclaim.mjs || echo \"[reclaim] failed, continuing\"; } && node node_modules/prisma/build/index.js migrate deploy && cd /app && node server.js'"]
