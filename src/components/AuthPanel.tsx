@@ -12,9 +12,15 @@ type Mode = "signin" | "register";
  * no reason to split them across two routes — and a visitor arriving on a
  * shared link usually doesn't know yet which of the two they need.
  */
-export function AuthPanel({ next }: { next: string }) {
+export function AuthPanel({
+  next,
+  initialMode = "register",
+}: {
+  next: string;
+  initialMode?: Mode;
+}) {
   const router = useRouter();
-  const [mode, setMode] = useState<Mode>("register");
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
@@ -36,8 +42,11 @@ export function AuthPanel({ next }: { next: string }) {
         setError(body?.error ?? "Something went wrong. Try again.");
         return;
       }
-      // Only relative paths, so a crafted ?next= cannot bounce someone off-site.
-      router.replace(next.startsWith("/") ? next : "/");
+      // Single leading slash only. A crafted `?next=//evil.example` is a
+      // protocol-relative URL that the browser treats as another origin, so
+      // checking for "/" alone is not enough to keep the redirect internal.
+      const safe = next.startsWith("/") && !next.startsWith("//") ? next : "/markets";
+      router.replace(safe);
       router.refresh();
     } catch {
       setError("Could not reach the exchange. Check your connection.");

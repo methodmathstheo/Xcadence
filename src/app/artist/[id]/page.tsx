@@ -102,7 +102,7 @@ export default function ArtistPage({ params }: { params: Promise<{ id: string }>
     return (
       <div className="mx-auto max-w-4xl px-4 py-16 text-center">
         <p className="label">No such artist in this run.</p>
-        <Link href="/" className="mt-3 inline-block text-xs text-accent hover:underline">
+        <Link href="/markets" className="mt-3 inline-block text-xs text-accent hover:underline">
           ← Back to rankings
         </Link>
       </div>

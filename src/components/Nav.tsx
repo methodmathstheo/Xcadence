@@ -7,7 +7,7 @@ import { UserMenu } from "@/components/UserMenu";
 import type { SessionUser } from "@/lib/auth/session";
 
 const LINKS: [string, string][] = [
-  ["/", "Rankings"],
+  ["/markets", "Rankings"],
   ["/trade", "Trading"],
   ["/exchange", "Exchange"],
   ["/portfolio", "Portfolio"],
@@ -21,7 +21,7 @@ export function Nav({ user }: { user: SessionUser | null }) {
   const path = usePathname();
   return (
     <nav className="flex items-center gap-0 border-b border-line bg-ink px-4">
-      <Link href="/" className="mr-6 flex items-center gap-2.5 py-2">
+      <Link href="/markets" className="mr-6 flex items-center gap-2.5 py-2">
         <Logo size={15} showTagline />
       </Link>
       <span
@@ -31,7 +31,7 @@ export function Nav({ user }: { user: SessionUser | null }) {
         Simulated
       </span>
       {LINKS.map(([href, label]) => {
-        const active = href === "/" ? path === "/" : path.startsWith(href);
+        const active = path === href || path.startsWith(`${href}/`);
         return (
           <Link
             key={href}

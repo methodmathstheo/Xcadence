@@ -3,6 +3,9 @@ import type { NextRequest } from "next/server";
 
 const COOKIE = "xc_session";
 
+/** Reachable without an account: the front door and the way in. */
+const PUBLIC = new Set(["/", "/login", "/welcome"]);
+
 /**
  * Routing only — not authorization.
  *
@@ -15,19 +18,21 @@ const COOKIE = "xc_session";
 export function proxy(req: NextRequest) {
   const signedIn = req.cookies.has(COOKIE);
   const { pathname, search } = req.nextUrl;
-  const isWelcome = pathname === "/welcome";
 
-  if (!signedIn && !isWelcome) {
+  if (!signedIn && !PUBLIC.has(pathname)) {
     const to = req.nextUrl.clone();
-    to.pathname = "/welcome";
+    to.pathname = "/login";
     // Carry the destination so a shared deep link survives the detour.
-    to.search = pathname === "/" ? "" : `?next=${encodeURIComponent(pathname + search)}`;
+    to.search = `?next=${encodeURIComponent(pathname + search)}`;
     return NextResponse.redirect(to);
   }
 
-  if (signedIn && isWelcome) {
+  // Signing in twice is not a thing. The landing page, by contrast, stays
+  // reachable when signed in — it swaps its calls to action and is the only
+  // page that explains the venue to someone who already has an account.
+  if (signedIn && pathname === "/login") {
     const to = req.nextUrl.clone();
-    to.pathname = "/";
+    to.pathname = "/markets";
     to.search = "";
     return NextResponse.redirect(to);
   }
