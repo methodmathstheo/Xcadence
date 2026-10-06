@@ -42,7 +42,10 @@ const RETENTION = [
   ["EquityPoint", 20_000],
   ["IndexPoint", 20_000],
   ["PricePoint", 400_000],
-  ["Trade", 25_000],
+  // Bot fills only. A person's own trades are their blotter and their realised
+  // P&L history; there are a handful of them against the bots' millions, and
+  // trimming by id alone would delete them to make room for machine noise.
+  ["Trade", 25_000, "actor <> 'USER'"],
   ["MarketEvent", 20_000],
   ["RoyaltyPayment", 50_000],
   // Normally trimmed by month key as the clock rolls over. Included as a
@@ -88,19 +91,26 @@ try {
 
 const tableCounts = [];
 
-for (const [table, keep] of RETENTION) {
+for (const [table, keep, only] of RETENTION) {
   if (!hasTable(db, table)) continue;
+  // `only` narrows both the count and the delete to the rows that are
+  // eligible, so a table can be trimmed without touching the rows in it that
+  // somebody is going to want to read back.
+  const scope = only ? `WHERE ${only}` : "";
+  const eligible = Number(
+    db.prepare(`SELECT COUNT(*) AS n FROM "${table}" ${scope}`).get().n,
+  );
   const total = count(db, table);
-  if (total <= keep) {
+  if (eligible <= keep) {
     console.log(`[reclaim] ${table}: ${total} rows, within ${keep} — kept`);
     tableCounts.push([table, total]);
     continue;
   }
 
-  // The id of the oldest row worth keeping. Computed once: re-running the
-  // offset scan on every batch would be quadratic over a 100k-row table.
+  // The id of the oldest eligible row worth keeping. Computed once:
+  // re-running the offset scan on every batch would be quadratic.
   const cut = db
-    .prepare(`SELECT id FROM "${table}" ORDER BY id DESC LIMIT 1 OFFSET ?`)
+    .prepare(`SELECT id FROM "${table}" ${scope} ORDER BY id DESC LIMIT 1 OFFSET ?`)
     .get(keep)?.id;
   if (cut == null) continue;
 
@@ -109,7 +119,9 @@ for (const [table, keep] of RETENTION) {
   // statement that cannot find room to record how to undo itself.
   const stmt = db.prepare(
     `DELETE FROM "${table}" WHERE id IN (
-       SELECT id FROM "${table}" WHERE id < ? ORDER BY id LIMIT ${BATCH}
+       SELECT id FROM "${table}"
+       WHERE id < ?${only ? ` AND ${only}` : ""}
+       ORDER BY id LIMIT ${BATCH}
      )`,
   );
   let removed = 0;

@@ -45,6 +45,11 @@ const TRADE_RETENTION = 20_000;
  */
 const PRICE_POINT_RETENTION = 400_000;
 const SERIES_RETENTION = 20_000;
+/**
+ * Flushes between housekeeping passes. At a flush every five seconds this is
+ * about a minute, which is the right order given how fast the bots print.
+ */
+const PRUNE_EVERY_FLUSHES = 12;
 
 /** A live stream connection. `userId` is null for a signed-out viewer, who gets the market but no book. */
 type Subscriber = { userId: number | null; send: (frame: StreamFrame) => void };
@@ -57,6 +62,7 @@ class Engine {
   private flushing = false;
   /** Set while a control action owns the world; the wall clock stands off. */
   private suspended = false;
+  private flushesSincePrune = 0;
 
   // ------------------------------------------------------------ lifecycle
 
@@ -617,7 +623,11 @@ class Engine {
 
       if (pending.newArtists.length) await this.admitEntrants(w, pending.newArtists);
       if (pending.newOfferings.length) await this.listOfferings(w, pending.newOfferings);
-      if (pending.months.length) await this.prune(w);
+      if (pending.months.length) await this.pruneMonths(w);
+      if (++this.flushesSincePrune >= PRUNE_EVERY_FLUSHES) {
+        this.flushesSincePrune = 0;
+        await this.pruneTape(w);
+      }
     } catch (err) {
       console.error("[engine] flush failed", err);
 
@@ -719,14 +729,44 @@ class Engine {
     w.offerings = w.offerings.filter((o) => o.status === "OPEN" || held.has(o.id));
   }
 
-  /** Long fast-forward runs are unbounded in rows; keep the tables finite. */
-  private async prune(w: World) {
+  /**
+   * Monthly housekeeping: fundamentals age out by month key.
+   *
+   * Only meaningful after a rollover, so it stays on the rollover path.
+   */
+  private async pruneMonths(w: World) {
     await prisma.artistMonth.deleteMany({
       where: {
         artist: { runId: w.runId },
         monthKey: { lt: w.lastMonthKey - MONTH_RETENTION },
       },
     });
+  }
+
+  /**
+   * Trim the append-only feeds.
+   *
+   * This runs on a flush cadence rather than on month rollovers, which is the
+   * correction to a real failure: the bots print on the order of a hundred
+   * trades a second, and at 1x a month rollover arrives once per real month.
+   * Hanging the only ceiling off rollovers meant the table grew by a million
+   * rows between them, which is how a 500MB volume filled.
+   */
+  private async pruneTape(w: World) {
+    // Bot fills only. A person's own trades are their blotter and their
+    // realised P&L history, there are a handful of them against the bots'
+    // millions, and deleting them to make room for machine noise would empty
+    // the one table they can see.
+    const botFills = { runId: w.runId, actor: "BOT" };
+    await trimById(
+      TRADE_RETENTION,
+      (skip) =>
+        prisma.trade.findMany({
+          where: botFills, orderBy: { id: "desc" }, skip, take: 1, select: { id: true },
+        }),
+      (id) => prisma.trade.deleteMany({ where: { ...botFills, id: { lte: id } } }),
+      () => prisma.trade.count({ where: botFills }),
+    );
 
     // Price points are not scoped to a run — they hang off the artist — so
     // this trims globally rather than per run.
@@ -774,22 +814,6 @@ class Engine {
         (id) => prisma.equityPoint.deleteMany({ where: { ...where, id: { lte: id } } }),
         () => prisma.equityPoint.count({ where }),
       );
-    }
-
-    const count = await prisma.trade.count({ where: { runId: w.runId } });
-    if (count > TRADE_RETENTION * 1.25) {
-      const cutoff = await prisma.trade.findMany({
-        where: { runId: w.runId },
-        orderBy: { id: "desc" },
-        skip: TRADE_RETENTION,
-        take: 1,
-        select: { id: true },
-      });
-      if (cutoff[0]) {
-        await prisma.trade.deleteMany({
-          where: { runId: w.runId, id: { lte: cutoff[0].id } },
-        });
-      }
     }
   }
 
