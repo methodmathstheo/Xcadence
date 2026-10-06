@@ -25,8 +25,9 @@
  * `migrate deploy`, so the schema on disk is the old one and the generated
  * client would not match it.
  */
-import { existsSync, renameSync, statSync, unlinkSync } from "node:fs";
-import { statfsSync } from "node:fs";
+import {
+  copyFileSync, existsSync, renameSync, statfsSync, statSync, truncateSync, unlinkSync,
+} from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 
 const url = process.env.DATABASE_URL ?? "file:/data/xcadence.db";
@@ -58,6 +59,13 @@ const RETENTION = [
  */
 const BATCH = 2_000;
 
+/**
+ * Where to build a compacted copy when the volume has no room for one. The
+ * container's own filesystem is ephemeral, which is fine: the copy only has
+ * to outlive the few seconds it takes to write it back.
+ */
+const SCRATCH = process.env.RECLAIM_SCRATCH ?? "/tmp";
+
 if (!existsSync(path)) {
   console.log(`[reclaim] no database at ${path} yet — nothing to do`);
   process.exit(0);
@@ -78,11 +86,14 @@ try {
   console.log(`[reclaim] wal checkpoint skipped: ${err.message}`);
 }
 
+const tableCounts = [];
+
 for (const [table, keep] of RETENTION) {
   if (!hasTable(db, table)) continue;
   const total = count(db, table);
   if (total <= keep) {
     console.log(`[reclaim] ${table}: ${total} rows, within ${keep} — kept`);
+    tableCounts.push([table, total]);
     continue;
   }
 
@@ -107,7 +118,9 @@ for (const [table, keep] of RETENTION) {
     if (!changes) break;
     removed += Number(changes);
   }
-  console.log(`[reclaim] ${table}: ${total} rows -> ${count(db, table)} (−${removed})`);
+  const left = count(db, table);
+  tableCounts.push([table, left]);
+  console.log(`[reclaim] ${table}: ${total} rows -> ${left} (−${removed})`);
 }
 
 // Rebuild into a fresh file to actually shrink it, but only when the volume
@@ -135,12 +148,69 @@ if (live * 1.3 < free) {
     console.log(`[reclaim] compaction failed, carrying on: ${err.message}`);
     if (existsSync(target)) unlinkSync(target);
   }
+} else if (live * 3 < before && live * 1.3 < freeBytes(SCRATCH)) {
+  // The volume itself has no room for a copy, but the container's own
+  // filesystem does — and after the deletes above there are only a few MB of
+  // live pages inside a file hundreds of MB wide.
+  //
+  // So: build the compacted copy outside the volume, prove it is sound, and
+  // only then truncate the original to give the space back. Truncating rather
+  // than renaming is the point — a rename on the same filesystem frees
+  // nothing, and nothing can be written to /data until something does.
+  const scratch = `${SCRATCH}/xcadence-compact-${process.pid}.db`;
+  let swapped = false;
+  try {
+    db.prepare(`VACUUM INTO '${scratch.replace(/'/g, "''")}'`).run();
+    db.close();
+    verify(scratch, tableCounts);
+
+    // From here the compacted copy on scratch is the only copy, for as long
+    // as it takes to write a few MB. That is the cost of the trade; the
+    // alternative is a volume that stays permanently full.
+    truncateSync(path, 0);
+    copyFileSync(scratch, path);
+    verify(path, tableCounts);
+    swapped = true;
+    for (const stale of [`${path}-wal`, `${path}-shm`]) {
+      if (existsSync(stale)) unlinkSync(stale);
+    }
+    console.log(`[reclaim] compacted via ${SCRATCH}: ${mb(before)} -> ${mb(sizeOf(path))}`);
+  } catch (err) {
+    console.log(`[reclaim] scratch compaction failed: ${err.message}`);
+    // The scratch copy is deliberately left behind when the swap did not
+    // complete. If the truncate landed and the copy did not, that file is the
+    // only intact database there is, and deleting it to tidy up would be the
+    // one unrecoverable thing this script could do.
+    if (existsSync(scratch)) {
+      console.log(`[reclaim] compacted copy kept at ${scratch}`);
+    }
+  }
+  if (swapped && existsSync(scratch)) unlinkSync(scratch);
 } else {
   db.close();
   console.log(
     `[reclaim] not enough room to compact — the freed pages are on SQLite's ` +
       `freelist and will be reused, so writes work; the file stays ${mb(sizeOf(path))}`,
   );
+}
+
+/**
+ * A compacted copy is only usable if it passes SQLite's own structural check
+ * *and* still holds the rows we expect. Either failing throws, which leaves
+ * the original in place.
+ */
+function verify(file, expected) {
+  const check = new DatabaseSync(file, { readOnly: true });
+  try {
+    const { integrity_check: result } = check.prepare("PRAGMA integrity_check").get();
+    if (result !== "ok") throw new Error(`integrity_check says ${result}`);
+    for (const [table, n] of expected) {
+      const got = count(check, table);
+      if (got !== n) throw new Error(`${table} has ${got} rows, expected ${n}`);
+    }
+  } finally {
+    check.close();
+  }
 }
 
 function hasTable(db, name) {
