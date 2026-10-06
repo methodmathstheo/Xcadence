@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
-import { prisma } from "@/lib/db";
+import { prisma, withWriteRetry } from "@/lib/db";
 
 export const COOKIE = "xc_session";
 
@@ -26,9 +26,9 @@ export async function createSession(userId: number, ttlMs = TTL_MS): Promise<voi
   const token = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + ttlMs);
 
-  await prisma.session.create({
-    data: { tokenHash: hash(token), userId, expiresAt },
-  });
+  await withWriteRetry("session.create", () =>
+    prisma.session.create({ data: { tokenHash: hash(token), userId, expiresAt } }),
+  );
 
   const jar = await cookies();
   jar.set(COOKIE, token, {

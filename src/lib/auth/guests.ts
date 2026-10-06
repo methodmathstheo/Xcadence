@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { prisma } from "@/lib/db";
+import { prisma, withWriteRetry } from "@/lib/db";
 import { hashPassword } from "@/lib/auth/password";
 
 /**
@@ -37,15 +37,18 @@ export function isGuestEmail(email: string): boolean {
  */
 export async function createGuest() {
   const tag = randomBytes(5).toString("hex");
-  return prisma.user.create({
-    data: {
-      email: `guest-${tag}@${GUEST_DOMAIN}`,
-      displayName: `Guest ${tag.slice(0, 4).toUpperCase()}`,
-      passwordHash: await hashPassword(randomBytes(24).toString("base64url")),
-      isGuest: true,
-    },
-    select: { id: true, email: true, displayName: true },
-  });
+  const passwordHash = await hashPassword(randomBytes(24).toString("base64url"));
+  return withWriteRetry("guest.create", () =>
+    prisma.user.create({
+      data: {
+        email: `guest-${tag}@${GUEST_DOMAIN}`,
+        displayName: `Guest ${tag.slice(0, 4).toUpperCase()}`,
+        passwordHash,
+        isGuest: true,
+      },
+      select: { id: true, email: true, displayName: true },
+    }),
+  );
 }
 
 /**

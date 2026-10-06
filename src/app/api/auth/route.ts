@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/db";
+import { prisma, withWriteRetry } from "@/lib/db";
 import { engine } from "@/lib/engine/engine";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { createSession, currentUser, destroySession } from "@/lib/auth/session";
@@ -54,10 +54,13 @@ export async function POST(req: Request) {
     if (displayName.length > 40) return bad("Display name is too long.");
 
     try {
-      const user = await prisma.user.create({
-        data: { email, displayName, passwordHash: await hashPassword(password) },
-        select: { id: true, email: true, displayName: true },
-      });
+      const hashed = await hashPassword(password);
+      const user = await withWriteRetry("user.create", () =>
+        prisma.user.create({
+          data: { email, displayName, passwordHash: hashed },
+          select: { id: true, email: true, displayName: true },
+        }),
+      );
       await createSession(user.id);
       await openBook(user.id);
       return NextResponse.json({ user: { ...user, isGuest: false } });
