@@ -10,6 +10,16 @@ export interface BotState {
   aggression: number;
   horizon: number;
   positions: Map<number, { qty: number; costBasis: number }>;
+  /**
+   * Artists this bot has traded since the last flush.
+   *
+   * Without this the flush rewrote every bot's entire book on every pass —
+   * thirty-two desks holding a couple of hundred names each, so upwards of
+   * seven thousand round trips inside one write transaction every five
+   * seconds. It held SQLite's write lock for about twelve seconds at a time,
+   * which is what made signing in intermittently take tens of seconds.
+   */
+  dirtyPositions: Set<number>;
 }
 
 export interface PositionState {
@@ -36,6 +46,10 @@ export interface Book {
   account: AccountState;
   positions: Map<number, PositionState>;
   offeringPositions: OfferingPositionState[];
+  /** Artists traded since the last flush. Same reason as `BotState`. */
+  dirtyPositions: Set<number>;
+  /** Cash or realised P&L moved — a royalty settlement does this on its own. */
+  accountDirty: boolean;
 }
 
 export interface TapeEntry {

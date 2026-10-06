@@ -77,6 +77,7 @@ export function accrueRoyalties(w: World, mk: number, tMs: number): void {
       const amount = artist.listeners * artist.royaltyRate * pos.sharePct;
       if (amount > 0) {
         book.account.cash += amount;
+        book.accountDirty = true;
         pos.royalties += amount;
         paid += amount;
         w.pending.royaltyPayments.push({

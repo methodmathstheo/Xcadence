@@ -89,8 +89,11 @@ export function executeTrade(
   if (actor.kind === "USER") {
     actor.book.account.cash -= quote.cost;
     actor.book.account.realisedPnl += realised;
+    actor.book.accountDirty = true;
+    actor.book.dirtyPositions.add(artistId);
   } else {
     actor.bot.cash -= quote.cost;
+    actor.bot.dirtyPositions.add(artistId);
   }
 
   const side: "BUY" | "SELL" = quote.qty > 0 ? "BUY" : "SELL";

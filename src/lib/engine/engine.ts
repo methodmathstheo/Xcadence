@@ -107,6 +107,8 @@ class Engine {
         },
         positions: new Map(),
         offeringPositions: [],
+        dirtyPositions: new Set(),
+        accountDirty: false,
       });
     }
     for (const p of positions) {
@@ -214,6 +216,7 @@ class Engine {
         positions: new Map(
           b.positions.map((p) => [p.artistId, { qty: p.qty, costBasis: p.costBasis }]),
         ),
+        dirtyPositions: new Set(),
       })),
       books,
       passiveLevel: 0,
@@ -285,6 +288,8 @@ class Engine {
       },
       positions: new Map(),
       offeringPositions: [],
+      dirtyPositions: new Set(),
+      accountDirty: false,
     };
     (this.world ?? w).books.set(userId, book);
     return book;
@@ -505,6 +510,22 @@ class Engine {
     w.dirty = new Set();
     w.pending = emptyPending();
 
+    // Books and bots are snapshotted the same way: take what changed, clear
+    // the live sets so work arriving mid-flush is not lost, and merge back on
+    // failure. Writing only these is what keeps the write transaction short —
+    // it used to rewrite every bot's entire book on every pass.
+    const bookWork = [...w.books.values()].map((book) => ({
+      book,
+      positions: [...book.dirtyPositions],
+      account: book.accountDirty,
+    }));
+    for (const book of w.books.values()) {
+      book.dirtyPositions = new Set();
+      book.accountDirty = false;
+    }
+    const botWork = w.bots.map((bot) => ({ bot, positions: [...bot.dirtyPositions] }));
+    for (const bot of w.bots) bot.dirtyPositions = new Set();
+
     try {
       await prisma.$transaction(
         async (tx) => {
@@ -543,13 +564,16 @@ class Engine {
           });
         }
 
-        for (const book of w.books.values()) {
-          await tx.account.update({
-            where: { runId_userId: { runId: w.runId, userId: book.userId } },
-            data: { cash: book.account.cash, realisedPnl: book.account.realisedPnl },
-          });
-
-          for (const [artistId, p] of book.positions) {
+        for (const { book, positions, account } of bookWork) {
+          if (account) {
+            await tx.account.update({
+              where: { runId_userId: { runId: w.runId, userId: book.userId } },
+              data: { cash: book.account.cash, realisedPnl: book.account.realisedPnl },
+            });
+          }
+          for (const artistId of positions) {
+            const p = book.positions.get(artistId);
+            if (!p) continue;
             await tx.position.upsert({
               where: {
                 runId_userId_artistId: { runId: w.runId, userId: book.userId, artistId },
@@ -567,12 +591,17 @@ class Engine {
           }
         }
 
-        for (const b of w.bots) {
-          await tx.bot.update({ where: { id: b.id }, data: { cash: b.cash } });
-          for (const [artistId, p] of b.positions) {
+        for (const { bot, positions } of botWork) {
+          // A bot's cash only moves when it trades, so an empty set means
+          // there is nothing to write for this desk at all.
+          if (positions.length === 0) continue;
+          await tx.bot.update({ where: { id: bot.id }, data: { cash: bot.cash } });
+          for (const artistId of positions) {
+            const p = bot.positions.get(artistId);
+            if (!p) continue;
             await tx.botPosition.upsert({
-              where: { botId_artistId: { botId: b.id, artistId } },
-              create: { botId: b.id, artistId, qty: p.qty, costBasis: p.costBasis },
+              where: { botId_artistId: { botId: bot.id, artistId } },
+              create: { botId: bot.id, artistId, qty: p.qty, costBasis: p.costBasis },
               update: { qty: p.qty, costBasis: p.costBasis },
             });
           }
@@ -638,6 +667,13 @@ class Engine {
       // permanently instead of retrying.
       for (const id of dirty) w.dirty.add(id);
       mergePending(w.pending, pending);
+      for (const { book, positions, account } of bookWork) {
+        for (const id of positions) book.dirtyPositions.add(id);
+        if (account) book.accountDirty = true;
+      }
+      for (const { bot, positions } of botWork) {
+        for (const id of positions) bot.dirtyPositions.add(id);
+      }
 
       // If the run disappeared underneath us the world is orphaned and every
       // further write would fail the same way. Drop it and reload on next tick.
