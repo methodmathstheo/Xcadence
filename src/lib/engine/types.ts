@@ -18,6 +18,26 @@ export interface PositionState {
   realised: number;
 }
 
+export interface AccountState {
+  cash: number;
+  startingCash: number;
+  realisedPnl: number;
+  sessionStartEquity: number;
+}
+
+/**
+ * One person's book inside a run: their cash, their open markets and their
+ * royalty positions. The market itself — prices, artists, bots, the index — is
+ * shared, so two people watching the same tape see the same quotes and move
+ * each other's marks, but they own separate capital.
+ */
+export interface Book {
+  userId: number;
+  account: AccountState;
+  positions: Map<number, PositionState>;
+  offeringPositions: OfferingPositionState[];
+}
+
 export interface TapeEntry {
   id: string;
   kind: "trade" | "event";
@@ -35,7 +55,8 @@ export interface TapeEntry {
 
 export interface PendingWrites {
   trades: {
-    artistId: number; botId: number | null; actor: string; side: string;
+    artistId: number; botId: number | null; userId: number | null;
+    actor: string; side: string;
     qty: number; cost: number; priceBefore: number; priceAfter: number;
     tMs: number; realised: number;
   }[];
@@ -50,7 +71,8 @@ export interface PendingWrites {
   }[];
   indexPoints: { tMs: number; equal: number; weighted: number }[];
   equityPoints: {
-    tMs: number; equity: number; cash: number; marketValue: number; realised: number;
+    userId: number; tMs: number; equity: number; cash: number;
+    marketValue: number; realised: number;
   }[];
   royaltyPayments: {
     positionId: number; monthKey: number; dateMs: number; amount: number;
@@ -83,13 +105,12 @@ export interface World {
   order: number[];
   bots: BotState[];
 
-  account: {
-    cash: number;
-    startingCash: number;
-    realisedPnl: number;
-    sessionStartEquity: number;
-  };
-  positions: Map<number, PositionState>;
+  /**
+   * Every signed-in trader's book, keyed by user id. Loaded lazily: a book
+   * enters the map the first time that person touches the venue in this
+   * process, and is written back on every flush thereafter.
+   */
+  books: Map<number, Book>;
 
   /**
    * Shared passive-flow level in units of `b`, an OU process around zero.
@@ -99,7 +120,6 @@ export interface World {
   passiveLevel: number;
 
   offerings: OfferingState[];
-  offeringPositions: OfferingPositionState[];
 
   /** Recent price samples per artist for the live charts (not durable). */
   priceRing: Map<number, { t: number; p: number }[]>;
@@ -121,12 +141,15 @@ export interface StreamFrame {
   /** [artistId, price, prevPrice, listeners] for markets that moved. */
   prices: [number, number, number, number][];
   tape: TapeEntry[];
-  account: {
-    cash: number;
-    equity: number;
-    marketValue: number;
-    realisedPnl: number;
-    unrealisedPnl: number;
-    sessionPnl: number;
-  };
+  /** The viewer's own book, or null for an unauthenticated stream. */
+  account: AccountFrame | null;
+}
+
+export interface AccountFrame {
+  cash: number;
+  equity: number;
+  marketValue: number;
+  realisedPnl: number;
+  unrealisedPnl: number;
+  sessionPnl: number;
 }

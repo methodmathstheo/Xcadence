@@ -18,7 +18,8 @@ import { spawnArtists } from "@/lib/engine/entry";
 import { accrueRoyalties, refreshOfferings } from "@/lib/engine/offerings";
 import { pushEvent, pushTape } from "@/lib/engine/tape";
 import type { OfferingState } from "@/lib/engine/offerings";
-import type { PendingWrites, StreamFrame, World } from "@/lib/engine/types";
+import { STARTING_CREDITS } from "@/lib/sim/constants";
+import type { AccountFrame, Book, PendingWrites, StreamFrame, World } from "@/lib/engine/types";
 
 /** Wall-clock period of one tick. Simulated time advances by this × speed. */
 export const TICK_MS = 1000;
@@ -33,7 +34,8 @@ const JUMP_SLICE_MS = 90 * 86_400_000;
 /** Trades kept on disk. The tape is a feed, not an audit log. */
 const TRADE_RETENTION = 20_000;
 
-type Subscriber = (frame: StreamFrame) => void;
+/** A live stream connection. `userId` is null for a signed-out viewer, who gets the market but no book. */
+type Subscriber = { userId: number | null; send: (frame: StreamFrame) => void };
 
 class Engine {
   world: World | null = null;
@@ -59,11 +61,11 @@ class Engine {
 
   private async load(): Promise<World> {
     const run = await getOrCreateRun();
-    const [artists, bots, account, positions, offerings, offeringPositions] =
+    const [artists, bots, accounts, positions, offerings, offeringPositions] =
       await Promise.all([
         prisma.artist.findMany({ where: { runId: run.id } }),
         prisma.bot.findMany({ where: { runId: run.id }, include: { positions: true } }),
-        prisma.account.findUniqueOrThrow({ where: { runId: run.id } }),
+        prisma.account.findMany({ where: { runId: run.id } }),
         prisma.position.findMany({ where: { runId: run.id } }),
         prisma.offering.findMany({ where: { runId: run.id } }),
         prisma.offeringPosition.findMany({
@@ -71,6 +73,45 @@ class Engine {
           include: { offering: { select: { artistId: true, termMonths: true } } },
         }),
       ]);
+
+    // Every book is loaded, not just the ones with a live connection: royalties
+    // accrue on the simulated calendar, so a position has to keep paying while
+    // its owner is away.
+    const books = new Map<number, Book>();
+    for (const acc of accounts) {
+      books.set(acc.userId, {
+        userId: acc.userId,
+        account: {
+          cash: acc.cash,
+          startingCash: acc.startingCash,
+          realisedPnl: acc.realisedPnl,
+          sessionStartEquity: acc.sessionStartEquity,
+        },
+        positions: new Map(),
+        offeringPositions: [],
+      });
+    }
+    for (const p of positions) {
+      books.get(p.userId)?.positions.set(p.artistId, {
+        qty: p.qty,
+        costBasis: p.costBasis,
+        realised: p.realised,
+      });
+    }
+    for (const p of offeringPositions) {
+      books.get(p.userId)?.offeringPositions.push({
+        id: p.id,
+        offeringId: p.offeringId,
+        artistId: p.offering.artistId,
+        credits: p.credits,
+        sharePct: p.sharePct,
+        startMonthKey: p.startMonthKey,
+        endMonthKey: p.endMonthKey,
+        royalties: p.royalties,
+        monthsPaid: p.monthsPaid,
+        active: p.active,
+      });
+    }
 
     const map = new Map<number, ArtistState>();
     for (const a of artists) {
@@ -156,18 +197,7 @@ class Engine {
           b.positions.map((p) => [p.artistId, { qty: p.qty, costBasis: p.costBasis }]),
         ),
       })),
-      account: {
-        cash: account.cash,
-        startingCash: account.startingCash,
-        realisedPnl: account.realisedPnl,
-        sessionStartEquity: account.sessionStartEquity,
-      },
-      positions: new Map(
-        positions.map((p) => [
-          p.artistId,
-          { qty: p.qty, costBasis: p.costBasis, realised: p.realised },
-        ]),
-      ),
+      books,
       passiveLevel: 0,
       offerings: offerings.map((o) => ({
         id: o.id,
@@ -180,19 +210,6 @@ class Engine {
         status: o.status,
         filled: o.filled,
       })),
-      offeringPositions: offeringPositions.map((p) => ({
-        id: p.id,
-        offeringId: p.offeringId,
-        artistId: p.offering.artistId,
-        credits: p.credits,
-        sharePct: p.sharePct,
-        startMonthKey: p.startMonthKey,
-        endMonthKey: p.endMonthKey,
-        royalties: p.royalties,
-        monthsPaid: p.monthsPaid,
-        active: p.active,
-      })),
-
       priceRing: new Map(),
       tape: [],
       dirty: new Set(),
@@ -208,6 +225,51 @@ class Engine {
 
     this.world = world;
     return world;
+  }
+
+  /**
+   * This user's book in the current run, opening one at STARTING_CREDITS if
+   * they have never traded this run. The Account row is written immediately
+   * rather than queued, because its id is the thing every position and equity
+   * point hangs off — a book has to be durable before it can be traded.
+   */
+  async ensureBook(userId: number): Promise<Book> {
+    const w = await this.ensureLoaded();
+    const existing = w.books.get(userId);
+    if (existing) return existing;
+
+    const row = await prisma.account.upsert({
+      where: { runId_userId: { runId: w.runId, userId } },
+      create: {
+        runId: w.runId,
+        userId,
+        cash: STARTING_CREDITS,
+        startingCash: STARTING_CREDITS,
+        realisedPnl: 0,
+        sessionStartEquity: STARTING_CREDITS,
+      },
+      update: {},
+    });
+
+    // The world may have been reloaded while the upsert was in flight; if a
+    // book landed meanwhile, keep that one so two requests cannot end up
+    // trading two different copies of the same cash.
+    const raced = this.world?.books.get(userId);
+    if (raced) return raced;
+
+    const book: Book = {
+      userId,
+      account: {
+        cash: row.cash,
+        startingCash: row.startingCash,
+        realisedPnl: row.realisedPnl,
+        sessionStartEquity: row.sessionStartEquity,
+      },
+      positions: new Map(),
+      offeringPositions: [],
+    };
+    (this.world ?? w).books.set(userId, book);
+    return book;
   }
 
   /** Boot: load state and start the wall clock. Idempotent. */
@@ -391,6 +453,23 @@ class Engine {
       equal: w.index.equal,
       weighted: w.index.weighted,
     });
+
+    // One equity mark per book per simulated month. This used to be written on
+    // every flush, which at 43200x produced six-figure row counts for a single
+    // trader; multiplied across accounts that is the whole database. A monthly
+    // close is also the right granularity for the curve the portfolio page
+    // draws, since that is where royalties and fundamentals land.
+    for (const book of w.books.values()) {
+      const eq = portfolioValue(w, book);
+      w.pending.equityPoints.push({
+        userId: book.userId,
+        tMs,
+        equity: eq.equity,
+        cash: book.account.cash,
+        marketValue: eq.marketValue,
+        realised: book.account.realisedPnl,
+      });
+    }
     for (const id of w.order) {
       const a = w.artists.get(id)!;
       w.pending.pricePoints.push({ artistId: id, tMs, price: a.price });
@@ -409,15 +488,6 @@ class Engine {
     w.pending = emptyPending();
 
     try {
-      const equity = portfolioValue(w);
-      pending.equityPoints.push({
-        tMs: w.simMs,
-        equity: equity.equity,
-        cash: w.account.cash,
-        marketValue: equity.marketValue,
-        realised: w.account.realisedPnl,
-      });
-
       await prisma.$transaction(
         async (tx) => {
         await tx.run.update({
@@ -455,23 +525,28 @@ class Engine {
           });
         }
 
-        await tx.account.update({
-          where: { runId: w.runId },
-          data: { cash: w.account.cash, realisedPnl: w.account.realisedPnl },
-        });
-
-        for (const [artistId, p] of w.positions) {
-          await tx.position.upsert({
-            where: { runId_artistId: { runId: w.runId, artistId } },
-            create: {
-              runId: w.runId,
-              artistId,
-              qty: p.qty,
-              costBasis: p.costBasis,
-              realised: p.realised,
-            },
-            update: { qty: p.qty, costBasis: p.costBasis, realised: p.realised },
+        for (const book of w.books.values()) {
+          await tx.account.update({
+            where: { runId_userId: { runId: w.runId, userId: book.userId } },
+            data: { cash: book.account.cash, realisedPnl: book.account.realisedPnl },
           });
+
+          for (const [artistId, p] of book.positions) {
+            await tx.position.upsert({
+              where: {
+                runId_userId_artistId: { runId: w.runId, userId: book.userId, artistId },
+              },
+              create: {
+                runId: w.runId,
+                userId: book.userId,
+                artistId,
+                qty: p.qty,
+                costBasis: p.costBasis,
+                realised: p.realised,
+              },
+              update: { qty: p.qty, costBasis: p.costBasis, realised: p.realised },
+            });
+          }
         }
 
         for (const b of w.bots) {
@@ -625,9 +700,11 @@ class Engine {
     }
     // Closed and expired listings stay in the database for the cohort view;
     // the world only carries what can still change.
-    w.offerings = w.offerings.filter(
-      (o) => o.status === "OPEN" || w.offeringPositions.some((p) => p.offeringId === o.id),
-    );
+    const held = new Set<number>();
+    for (const book of w.books.values()) {
+      for (const p of book.offeringPositions) held.add(p.offeringId);
+    }
+    w.offerings = w.offerings.filter((o) => o.status === "OPEN" || held.has(o.id));
   }
 
   /** Long fast-forward runs are unbounded in rows; keep the tables finite. */
@@ -712,14 +789,15 @@ class Engine {
 
   // ---------------------------------------------------------------- stream
 
-  subscribe(fn: Subscriber): () => void {
-    this.subscribers.add(fn);
-    return () => this.subscribers.delete(fn);
+  subscribe(userId: number | null, send: (frame: StreamFrame) => void): () => void {
+    const sub: Subscriber = { userId, send };
+    this.subscribers.add(sub);
+    return () => this.subscribers.delete(sub);
   }
 
-  frame(w: World, full = false): StreamFrame {
+  frame(w: World, full = false, userId: number | null = null): StreamFrame {
     const ids = full ? w.order : [...w.changed];
-    const equity = portfolioValue(w);
+    const book = userId == null ? undefined : w.books.get(userId);
     return {
       simMs: w.simMs,
       tick: w.tick,
@@ -732,14 +810,7 @@ class Engine {
         return [id, a.price, a.prevPrice, a.listeners] as [number, number, number, number];
       }),
       tape: w.tape.slice(0, 40),
-      account: {
-        cash: w.account.cash,
-        equity: equity.equity,
-        marketValue: equity.marketValue,
-        realisedPnl: w.account.realisedPnl,
-        unrealisedPnl: equity.unrealised,
-        sessionPnl: equity.equity - w.account.sessionStartEquity,
-      },
+      account: book ? accountFrame(w, book) : null,
     };
   }
 
@@ -748,10 +819,14 @@ class Engine {
       w.changed.clear();
       return;
     }
-    const f = this.frame(w);
-    for (const fn of this.subscribers) {
+    // The market half of the frame is identical for everyone, so it is built
+    // once; only the account block is per-viewer, and it is spliced on by
+    // shallow copy so the price array and tape stay shared.
+    const base = this.frame(w);
+    for (const sub of this.subscribers) {
+      const book = sub.userId == null ? undefined : w.books.get(sub.userId);
       try {
-        fn(f);
+        sub.send(book ? { ...base, account: accountFrame(w, book) } : base);
       } catch {
         /* a dead subscriber must not stop the clock */
       }
@@ -762,10 +837,10 @@ class Engine {
 
 // ---------------------------------------------------------------- helpers
 
-export function portfolioValue(w: World) {
+export function portfolioValue(w: World, book: Book) {
   let marketValue = 0;
   let cost = 0;
-  for (const [artistId, p] of w.positions) {
+  for (const [artistId, p] of book.positions) {
     if (p.qty === 0) continue;
     const a = w.artists.get(artistId);
     if (!a) continue;
@@ -776,7 +851,19 @@ export function portfolioValue(w: World) {
     marketValue,
     cost,
     unrealised: marketValue - cost,
-    equity: w.account.cash + marketValue,
+    equity: book.account.cash + marketValue,
+  };
+}
+
+export function accountFrame(w: World, book: Book): AccountFrame {
+  const eq = portfolioValue(w, book);
+  return {
+    cash: book.account.cash,
+    equity: eq.equity,
+    marketValue: eq.marketValue,
+    realisedPnl: book.account.realisedPnl,
+    unrealisedPnl: eq.unrealised,
+    sessionPnl: eq.equity - book.account.sessionStartEquity,
   };
 }
 

@@ -1,9 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import { Nav } from "@/components/Nav";
-import { ClockBar } from "@/components/ClockBar";
-import { TickerBar } from "@/components/TickerBar";
+import { VenueChrome } from "@/components/VenueChrome";
+import { currentOwner } from "@/lib/auth/owner";
 import { isDemo } from "@/lib/sim/names";
 
 // Space Grotesk for chrome and headings, JetBrains Mono for every figure.
@@ -49,16 +48,16 @@ export const metadata: Metadata = {
   description: "A live simulated exchange in artist royalty shares.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const { user, owner } = await currentOwner();
+
   return (
     <html
       lang="en"
       className={`${display.variable} ${mono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-ink">
-        <Nav />
-        <ClockBar />
-        <TickerBar />
+        <VenueChrome user={user} owner={owner} />
         <main className="flex-1">{children}</main>
         <footer className="border-t border-line px-4 py-3 text-xs leading-relaxed text-fg-mute">
           {isDemo() ? (

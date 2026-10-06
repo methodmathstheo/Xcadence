@@ -41,7 +41,7 @@ model Run {
   offeringPositions OfferingPosition[]
   indexPoints IndexPoint[]
   equityPoints EquityPoint[]
-  account     Account?
+  accounts    Account[]
 
   @@index([active])
 }
@@ -190,6 +190,8 @@ model Trade {
   artist      Artist  @relation(fields: [artistId], references: [id], onDelete: Cascade)
   botId       Int?
   bot         Bot?    @relation(fields: [botId], references: [id], onDelete: Cascade)
+  userId      Int?
+  user        User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
   actor       String  // USER | BOT
   side        String  // BUY | SELL
   qty         Float
@@ -202,6 +204,7 @@ model Trade {
   @@index([runId, id])
   @@index([artistId, id])
   @@index([runId, actor, id])
+  @@index([runId, userId, id])
 }
 
 model MarketEvent {
@@ -219,28 +222,64 @@ model MarketEvent {
   @@index([artistId, id])
 }
 
-/// The single private user's cash account.
+/// A person with their own account. Password is scrypt-hashed; the salt and
+/// parameters live alongside the digest in `passwordHash`.
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  displayName  String
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  sessions     Session[]
+  accounts     Account[]
+  positions    Position[]
+  offeringPositions OfferingPosition[]
+  trades       Trade[]
+  equityPoints EquityPoint[]
+}
+
+/// Opaque session token, stored hashed so a database read cannot impersonate.
+model Session {
+  id        Int      @id @default(autoincrement())
+  tokenHash String   @unique
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([userId])
+}
+
+/// One cash account per user per run.
 model Account {
   id           Int   @id @default(autoincrement())
-  runId        Int   @unique
+  runId        Int
   run          Run   @relation(fields: [runId], references: [id], onDelete: Cascade)
+  userId       Int
+  user         User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   cash         Float
   startingCash Float
   realisedPnl  Float @default(0)
   sessionStartEquity Float
+
+  @@unique([runId, userId])
 }
 
 model Position {
   id        Int    @id @default(autoincrement())
   runId     Int
   run       Run    @relation(fields: [runId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   artistId  Int
   artist    Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
   qty       Float
   costBasis Float  // total credits paid for the open qty
   realised  Float  @default(0)
 
-  @@unique([runId, artistId])
+  @@unique([runId, userId, artistId])
+  @@index([runId, userId])
 }
 
 /// Primary market: an artist sells a slice of future royalties.
@@ -266,6 +305,8 @@ model OfferingPosition {
   id          Int      @id @default(autoincrement())
   runId       Int
   run         Run      @relation(fields: [runId], references: [id], onDelete: Cascade)
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   offeringId  Int
   offering    Offering @relation(fields: [offeringId], references: [id], onDelete: Cascade)
   credits     Float    // capital deployed by the user
@@ -277,7 +318,7 @@ model OfferingPosition {
   active      Boolean  @default(true)
   payments    RoyaltyPayment[]
 
-  @@index([runId, active])
+  @@index([runId, userId, active])
 }
 
 model RoyaltyPayment {
@@ -306,11 +347,13 @@ model EquityPoint {
   id          Int   @id @default(autoincrement())
   runId       Int
   run         Run   @relation(fields: [runId], references: [id], onDelete: Cascade)
+  userId      Int
+  user        User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   tMs         Float
   equity      Float
   cash        Float
   marketValue Float
   realised    Float
 
-  @@index([runId, tMs])
+  @@index([runId, userId, tMs])
 }

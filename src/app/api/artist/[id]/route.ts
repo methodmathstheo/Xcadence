@@ -6,6 +6,7 @@ import { primaryGenre, parseGenres } from "@/lib/music/genre";
 import { SimulatedDataProvider } from "@/lib/data/simulated";
 import { dcf, discountSensitivity, estimateInputs } from "@/lib/quant/dcf";
 import { DEFAULT_DISCOUNT } from "@/lib/sim/constants";
+import { unauthorized, withBook } from "@/lib/auth/guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,7 +25,9 @@ export async function GET(
 ) {
   const { id: raw } = await ctx.params;
   const id = Number(raw);
-  const w = await engine.ensureLoaded();
+  const auth = await withBook();
+  if (!auth) return unauthorized();
+  const { w, book } = auth;
   const a = w.artists.get(id);
   if (!a) return NextResponse.json({ error: "no such artist" }, { status: 404 });
 
@@ -66,7 +69,7 @@ export async function GET(
   const inputs = estimateInputs(a, discount);
   const valuation = dcf(inputs);
   const sensitivity = discountSensitivity(inputs);
-  const position = w.positions.get(id) ?? null;
+  const position = book.positions.get(id) ?? null;
 
   return NextResponse.json({
     simMs: w.simMs,

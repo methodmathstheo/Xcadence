@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { engine } from "@/lib/engine/engine";
 import { DEFAULT_SEED } from "@/lib/sim/run";
+import { currentUser } from "@/lib/auth/session";
+import { isOwner } from "@/lib/auth/owner";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,6 +26,18 @@ export async function GET() {
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
   const action = String(body?.action ?? "");
+
+  const user = await currentUser();
+  if (!user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+
+  // Reset discards every account's book, so it is the owner's alone. The rest
+  // of the clock is shared and reversible.
+  if (action === "reset" && !(await isOwner(user))) {
+    return NextResponse.json(
+      { error: "Only the venue owner can reseed the run." },
+      { status: 403 },
+    );
+  }
 
   let w;
   switch (action) {

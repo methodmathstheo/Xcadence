@@ -5,12 +5,15 @@ import { annualise, irrMonthly } from "@/lib/engine/offerings";
 import { dcf, estimateInputs } from "@/lib/quant/dcf";
 import { monthKey } from "@/lib/sim/time";
 import { cohortStats } from "@/lib/quant/cohort";
+import { unauthorized, withBook } from "@/lib/auth/guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const w = await engine.ensureLoaded();
+  const auth = await withBook();
+  if (!auth) return unauthorized();
+  const { w, book, user } = auth;
   const nowKey = monthKey(w.simMs);
 
   const open = w.offerings
@@ -48,7 +51,7 @@ export async function GET() {
 
   // ---- the user's positions, with payment history for IRR
   const rows = await prisma.offeringPosition.findMany({
-    where: { runId: w.runId },
+    where: { runId: w.runId, userId: user.id },
     include: {
       offering: { select: { artistId: true, pctRoyalty: true, termMonths: true, artist: { select: { name: true, active: true } } } },
       payments: { orderBy: { monthKey: "asc" }, select: { monthKey: true, amount: true } },
@@ -57,7 +60,7 @@ export async function GET() {
   });
 
   const positions = rows.map((p) => {
-    const live = w.offeringPositions.find((x) => x.id === p.id);
+    const live = book.offeringPositions.find((x) => x.id === p.id);
     const royalties = live?.royalties ?? p.royalties;
     const monthsPaid = live?.monthsPaid ?? p.monthsPaid;
     const active = live?.active ?? p.active;
@@ -101,9 +104,24 @@ export async function GET() {
     };
   });
 
-  // ---- cohort: every offering ever taken in this run
-  const closed = positions.filter((p) => !p.active);
-  const all = positions;
+  // ---- cohort: every offering taken in this run, by anyone.
+  //
+  // Deliberately venue-wide rather than per-account. The finding this panel
+  // exists to show — that the median slice returns far less than the mean —
+  // is a property of the offering distribution, and one trader's handful of
+  // positions is too small a sample to read it off.
+  const cohortRows = await prisma.offeringPosition.findMany({
+    where: { runId: w.runId },
+    select: { credits: true, royalties: true, active: true },
+  });
+  const venue = cohortRows.map((p) => ({
+    credits: p.credits,
+    royalties: p.royalties,
+    active: p.active,
+    ret: p.credits > 0 ? p.royalties / p.credits - 1 : 0,
+  }));
+  const closed = venue.filter((p) => !p.active);
+  const all = venue;
   const cohort = {
     taken: all.length,
     closed: closed.length,
@@ -121,7 +139,7 @@ export async function GET() {
 
   return NextResponse.json({
     simMs: w.simMs,
-    cash: w.account.cash,
+    cash: book.account.cash,
     open,
     positions,
     cohort,
@@ -134,13 +152,15 @@ export async function POST(req: Request) {
   const offeringId = Number(body?.offeringId);
   const credits = Number(body?.credits);
 
-  const w = await engine.ensureLoaded();
+  const auth = await withBook();
+  if (!auth) return unauthorized();
+  const { w, book, user } = auth;
   const o = w.offerings.find((x) => x.id === offeringId);
   if (!o) return NextResponse.json({ error: "no such offering" }, { status: 404 });
   if (o.status !== "OPEN") return NextResponse.json({ error: "offering is closed" }, { status: 400 });
 
   const remaining = Math.max(0, o.askCredits - o.filled);
-  const amount = Math.min(credits, remaining, w.account.cash);
+  const amount = Math.min(credits, remaining, book.account.cash);
   if (!(amount > 0)) {
     return NextResponse.json({ error: "nothing to allocate" }, { status: 400 });
   }
@@ -158,6 +178,7 @@ export async function POST(req: Request) {
   const created = await prisma.offeringPosition.create({
     data: {
       runId: w.runId,
+      userId: user.id,
       offeringId: o.id,
       credits: amount,
       sharePct,
@@ -169,11 +190,11 @@ export async function POST(req: Request) {
     },
   });
 
-  w.account.cash -= amount;
+  book.account.cash -= amount;
   o.filled = Math.min(o.askCredits, o.filled + amount);
   if (o.filled >= o.askCredits * 0.999) o.status = "FILLED";
   w.pending.offeringUpdates.push(o);
-  w.offeringPositions.push({
+  book.offeringPositions.push({
     id: created.id,
     offeringId: o.id,
     artistId: o.artistId,
@@ -187,7 +208,7 @@ export async function POST(req: Request) {
   });
 
   await engine.flush();
-  return NextResponse.json({ ok: true, allocated: amount, sharePct, cash: w.account.cash });
+  return NextResponse.json({ ok: true, allocated: amount, sharePct, cash: book.account.cash });
 }
 
 function histogram(returns: number[]) {

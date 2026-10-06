@@ -57,37 +57,45 @@ const SYNTHETIC_FILL_CAP = 0.7;
 export function accrueRoyalties(w: World, mk: number, tMs: number): void {
   let paid = 0;
   let closed = 0;
+  let open = 0;
 
-  for (const pos of w.offeringPositions) {
-    if (!pos.active) continue;
-    const artist = w.artists.get(pos.artistId);
+  // Walk every book, not just the connected ones: a royalty stream is bought
+  // once and then pays on the simulated calendar, whether or not its owner is
+  // watching. Each payment lands in its own buyer's cash.
+  for (const book of w.books.values()) {
+    for (const pos of book.offeringPositions) {
+      if (!pos.active) continue;
+      const artist = w.artists.get(pos.artistId);
 
-    if (!artist || !artist.active) {
-      pos.active = false;
-      closed++;
+      if (!artist || !artist.active) {
+        pos.active = false;
+        closed++;
+        w.pending.offeringPositionUpdates.push(pos);
+        continue;
+      }
+
+      const amount = artist.listeners * artist.royaltyRate * pos.sharePct;
+      if (amount > 0) {
+        book.account.cash += amount;
+        pos.royalties += amount;
+        paid += amount;
+        w.pending.royaltyPayments.push({
+          positionId: pos.id,
+          monthKey: mk,
+          dateMs: tMs,
+          amount,
+        });
+      }
+
+      pos.monthsPaid += 1;
+      if (mk >= pos.endMonthKey || pos.monthsPaid >= termOf(pos)) {
+        pos.active = false;
+        closed++;
+      } else {
+        open++;
+      }
       w.pending.offeringPositionUpdates.push(pos);
-      continue;
     }
-
-    const amount = artist.listeners * artist.royaltyRate * pos.sharePct;
-    if (amount > 0) {
-      w.account.cash += amount;
-      pos.royalties += amount;
-      paid += amount;
-      w.pending.royaltyPayments.push({
-        positionId: pos.id,
-        monthKey: mk,
-        dateMs: tMs,
-        amount,
-      });
-    }
-
-    pos.monthsPaid += 1;
-    if (mk >= pos.endMonthKey || pos.monthsPaid >= termOf(pos)) {
-      pos.active = false;
-      closed++;
-    }
-    w.pending.offeringPositionUpdates.push(pos);
   }
 
   if (paid > 0) {
@@ -96,7 +104,7 @@ export function accrueRoyalties(w: World, mk: number, tMs: number): void {
       kind: "payout",
       magnitude: paid,
       headline: `Royalty settlement — ${paid.toFixed(2)} credits across ${
-        w.offeringPositions.filter((p) => p.active).length + closed
+        open + closed
       } positions`,
     });
   }

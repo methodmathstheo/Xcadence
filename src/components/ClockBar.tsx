@@ -16,7 +16,7 @@ const JUMPS: [string, number][] = [
  * The clock is the venue's, not the browser's. These controls tell the server
  * what to do; the header then reflects whatever the server is actually doing.
  */
-export function ClockBar() {
+export function ClockBar({ owner = false }: { owner?: boolean }) {
   const m = useMarket();
   const router = useRouter();
   const [busy, startTransition] = useTransition();
@@ -99,7 +99,10 @@ export function ClockBar() {
           </span>
         </span>
 
-        {showReset ? (
+        {/* Reset discards every account's book, so it is only offered to the
+            owner. The server enforces this too — this just stops a visitor
+            reaching for a button that will refuse them. */}
+        {!owner ? null : showReset ? (
           <span className="flex items-center gap-1">
             <input
               value={seed}

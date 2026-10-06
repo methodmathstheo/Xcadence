@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { engine } from "@/lib/engine/engine";
+import { unauthorized, withBook } from "@/lib/auth/guard";
 import { dcf, discountSensitivity, estimateInputs } from "@/lib/quant/dcf";
 import { monteCarlo } from "@/lib/quant/montecarlo";
 import { kaplanMeierByGroup, type SurvivalSubject } from "@/lib/quant/survival";
@@ -17,7 +18,9 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
   const tool = String(body?.tool ?? "");
-  const w = await engine.ensureLoaded();
+  const auth = await withBook();
+  if (!auth) return unauthorized();
+  const { w, book } = auth;
 
   switch (tool) {
     // ------------------------------------------------------------------ DCF
@@ -179,7 +182,7 @@ export async function POST(req: Request) {
     case "diversification": {
       let ids: number[] = Array.isArray(body.artistIds) ? body.artistIds.map(Number) : [];
       if (ids.length < 2) {
-        ids = [...w.positions.entries()]
+        ids = [...book.positions.entries()]
           .filter(([, p]) => Math.abs(p.qty) > 1e-9)
           .map(([id]) => id);
       }

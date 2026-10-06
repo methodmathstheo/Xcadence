@@ -2,10 +2,12 @@ import {
   ensureHeadroom, lmsrPrice, maxBuyForCredits, quoteTrade, type Quote,
 } from "@/lib/sim/lmsr";
 import type { ArtistState } from "@/lib/sim/dynamics";
-import type { BotState, PositionState, World } from "@/lib/engine/types";
+import type { Book, BotState, PositionState, World } from "@/lib/engine/types";
 import { pushTape } from "@/lib/engine/tape";
 
-export type Actor = { kind: "USER" } | { kind: "BOT"; bot: BotState };
+/** Who is trading. A user actor carries its own book, so two traders hitting the
+ * same market touch the same quote and separate capital. */
+export type Actor = { kind: "USER"; book: Book } | { kind: "BOT"; bot: BotState };
 
 export interface Fill extends Quote {
   artistId: number;
@@ -36,9 +38,9 @@ export function executeTrade(
   if (!Number.isFinite(qty) || qty === 0) throw new TradeError("size must be non-zero");
 
   const isUser = actor.kind === "USER";
-  const positions = isUser ? w.positions : actor.kind === "BOT" ? actor.bot.positions : null;
+  const positions = actor.kind === "USER" ? actor.book.positions : actor.bot.positions;
   const held = positionOf(positions, artistId);
-  const cash = isUser ? w.account.cash : (actor as { bot: BotState }).bot.cash;
+  const cash = actor.kind === "USER" ? actor.book.account.cash : actor.bot.cash;
 
   // Short only where allowed, and never past flat by more than the caller asked.
   if (!opts.allowShort && held.qty + qty < -1e-9) {
@@ -84,20 +86,20 @@ export function executeTrade(
 
   // ---- apply to the trader
   const realised = applyToPosition(positions!, artistId, quote.qty, quote.cost);
-  if (isUser) {
-    w.account.cash -= quote.cost;
-    w.account.realisedPnl += realised;
+  if (actor.kind === "USER") {
+    actor.book.account.cash -= quote.cost;
+    actor.book.account.realisedPnl += realised;
   } else {
-    const bot = (actor as { bot: BotState }).bot;
-    bot.cash -= quote.cost;
+    actor.bot.cash -= quote.cost;
   }
 
   const side: "BUY" | "SELL" = quote.qty > 0 ? "BUY" : "SELL";
-  const actorName = isUser ? "You" : (actor as { bot: BotState }).bot.name;
+  const actorName = actor.kind === "USER" ? "You" : actor.bot.name;
 
   w.pending.trades.push({
     artistId,
-    botId: isUser ? null : (actor as { bot: BotState }).bot.id,
+    botId: actor.kind === "BOT" ? actor.bot.id : null,
+    userId: actor.kind === "USER" ? actor.book.userId : null,
     actor: isUser ? "USER" : "BOT",
     side,
     qty: quote.qty,

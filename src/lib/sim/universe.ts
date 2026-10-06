@@ -296,16 +296,9 @@ export async function createRun(seed: number): Promise<number> {
     }),
   });
 
-  // --------------------------------------------------------------- account
-  await prisma.account.create({
-    data: {
-      runId: run.id,
-      cash: STARTING_CREDITS,
-      startingCash: STARTING_CREDITS,
-      realisedPnl: 0,
-      sessionStartEquity: STARTING_CREDITS,
-    },
-  });
+  // Accounts are no longer seeded here. Each trader gets one — funded with
+  // STARTING_CREDITS — the first time they open the venue under this run, so a
+  // run that nobody has visited yet has no books at all.
 
   // -------------------------------------------------------- index baseline
   const activeStates = states.filter((a) => a.active);
@@ -324,17 +317,6 @@ export async function createRun(seed: number): Promise<number> {
   await prisma.indexPoint.create({
     data: { runId: run.id, tMs: SIM_START_MS, equal: 100, weighted: 100 },
   });
-  await prisma.equityPoint.create({
-    data: {
-      runId: run.id,
-      tMs: SIM_START_MS,
-      equity: STARTING_CREDITS,
-      cash: STARTING_CREDITS,
-      marketValue: 0,
-      realised: 0,
-    },
-  });
-
   // ----------------------------------------------------- opening offerings
   const offerRng = rng.fork("offerings");
   const candidates = states.filter((a) => a.active && (a.tier === "emerging" || a.tier === "dormant"));

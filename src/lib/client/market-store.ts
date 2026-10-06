@@ -94,7 +94,9 @@ class MarketStore {
       wallMs: f.wallMs,
     };
     this.index = f.index;
-    this.account = f.account;
+    // Null on a signed-out stream; keep the zeroed default rather than
+    // propagating null into every widget that reads a number off it.
+    if (f.account) this.account = f.account;
     if (f.tape) this.tape = f.tape;
 
     const now = Date.now();

@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Logo } from "@/components/Logo";
+import { UserMenu } from "@/components/UserMenu";
+import type { SessionUser } from "@/lib/auth/session";
 
 const LINKS: [string, string][] = [
   ["/", "Rankings"],
@@ -15,7 +17,7 @@ const LINKS: [string, string][] = [
   ["/inspector", "Run inspector"],
 ];
 
-export function Nav() {
+export function Nav({ user }: { user: SessionUser | null }) {
   const path = usePathname();
   return (
     <nav className="flex items-center gap-0 border-b border-line bg-ink px-4">
@@ -44,6 +46,7 @@ export function Nav() {
           </Link>
         );
       })}
+      <UserMenu user={user} />
     </nav>
   );
 }

@@ -6,6 +6,7 @@ import { primaryGenre, parseGenres } from "@/lib/music/genre";
 import { buildBook, buildCandles } from "@/lib/sim/orderbook";
 import { dcf, estimateInputs } from "@/lib/quant/dcf";
 import { maxBuyForCredits } from "@/lib/sim/lmsr";
+import { unauthorized, withBook } from "@/lib/auth/guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,7 +15,9 @@ export const dynamic = "force-dynamic";
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id: raw } = await ctx.params;
   const id = Number(raw);
-  const w = await engine.ensureLoaded();
+  const auth = await withBook();
+  if (!auth) return unauthorized();
+  const { w, book, user } = auth;
   const a = w.artists.get(id);
   if (!a) return NextResponse.json({ error: "no such artist" }, { status: 404 });
 
@@ -31,6 +34,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       take: 60,
       select: {
         id: true, side: true, qty: true, priceAfter: true, tMs: true, actor: true,
+        userId: true,
         bot: { select: { name: true } },
       },
     }),
@@ -57,7 +61,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   const low = candles.reduce((m, c) => Math.min(m, c.l), a.price);
   const volume = candles.reduce((s, c) => s + c.v, 0);
   const fair = dcf(estimateInputs(a)).pvPerContract;
-  const position = w.positions.get(id) ?? { qty: 0, costBasis: 0, realised: 0 };
+  const position = book.positions.get(id) ?? { qty: 0, costBasis: 0, realised: 0 };
 
   return NextResponse.json({
     market: {
@@ -92,13 +96,15 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       qty: Math.abs(t.qty),
       price: t.priceAfter,
       tMs: t.tMs,
-      who: t.actor === "USER" ? "You" : (t.bot?.name ?? "Desk"),
-      mine: t.actor === "USER",
+      // With separate books, another trader's fill is still a human print —
+      // it just isn't yours, so it reads as a counterparty rather than "You".
+      who: t.actor !== "USER" ? (t.bot?.name ?? "Desk") : t.userId === user.id ? "You" : "Trader",
+      mine: t.actor === "USER" && t.userId === user.id,
     })),
     account: {
-      cash: w.account.cash,
+      cash: book.account.cash,
       position,
-      maxBuy: maxBuyForCredits(a.q, a.b, a.vMax, w.account.cash),
+      maxBuy: maxBuyForCredits(a.q, a.b, a.vMax, book.account.cash),
     },
     simMs: w.simMs,
   });

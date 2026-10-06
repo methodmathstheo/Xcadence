@@ -7,16 +7,19 @@ import { dcf, estimateInputs } from "@/lib/quant/dcf";
 import { toReturns } from "@/lib/quant/cohort";
 import { analysePortfolio, MIN_HISTORY, type AssetInput } from "@/lib/quant/portfolio";
 import { monthKey } from "@/lib/sim/time";
+import { unauthorized, withBook } from "@/lib/auth/guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /** Holdings marked live, the blotter, and the equity curve over sim time. */
 export async function GET() {
-  const w = await engine.ensureLoaded();
+  const auth = await withBook();
+  if (!auth) return unauthorized();
+  const { w, book, user } = auth;
 
   const holdings = [];
-  for (const [artistId, p] of w.positions) {
+  for (const [artistId, p] of book.positions) {
     if (Math.abs(p.qty) < 1e-9) continue;
     const a = w.artists.get(artistId);
     if (!a) continue;
@@ -37,12 +40,12 @@ export async function GET() {
   }
   holdings.sort((x, y) => Math.abs(y.marketValue) - Math.abs(x.marketValue));
 
-  const totals = portfolioValue(w);
+  const totals = portfolioValue(w, book);
   const grossExposure = holdings.reduce((s, h) => s + Math.abs(h.marketValue), 0);
 
   const [blotter, equity] = await Promise.all([
     prisma.trade.findMany({
-      where: { runId: w.runId, actor: "USER" },
+      where: { runId: w.runId, actor: "USER", userId: user.id },
       orderBy: { id: "desc" },
       take: 200,
       select: {
@@ -52,7 +55,7 @@ export async function GET() {
       },
     }),
     prisma.equityPoint.findMany({
-      where: { runId: w.runId },
+      where: { runId: w.runId, userId: user.id },
       orderBy: { tMs: "asc" },
       take: 800,
       select: { tMs: true, equity: true, cash: true, marketValue: true, realised: true },
@@ -99,12 +102,12 @@ export async function GET() {
         price: a.price,
         fairValue: dcf(estimateInputs(a)).pvPerContract,
         returns: toReturns(closes),
-        qty: w.positions.get(id)?.qty ?? 0,
+        qty: book.positions.get(id)?.qty ?? 0,
       });
     }
   }
 
-  const analysis = analysePortfolio(assets, w.account.cash, { seed: w.seed });
+  const analysis = analysePortfolio(assets, book.account.cash, { seed: w.seed });
 
   // ---- growth: the book against the equal-weighted index, rebased to 100
   const indexPoints = await prisma.indexPoint.findMany({
@@ -120,13 +123,13 @@ export async function GET() {
     benchmark: indexPoints,
     historyReady: assets.some((a) => a.returns.length >= MIN_HISTORY),
     account: {
-      cash: w.account.cash,
-      startingCash: w.account.startingCash,
-      realisedPnl: w.account.realisedPnl,
-      sessionStartEquity: w.account.sessionStartEquity,
+      cash: book.account.cash,
+      startingCash: book.account.startingCash,
+      realisedPnl: book.account.realisedPnl,
+      sessionStartEquity: book.account.sessionStartEquity,
       ...totals,
-      sessionPnl: totals.equity - w.account.sessionStartEquity,
-      totalReturn: totals.equity / w.account.startingCash - 1,
+      sessionPnl: totals.equity - book.account.sessionStartEquity,
+      totalReturn: totals.equity / book.account.startingCash - 1,
     },
     holdings: holdings.map((h) => ({
       ...h,

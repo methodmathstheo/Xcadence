@@ -1,4 +1,6 @@
 import { engine } from "@/lib/engine/engine";
+import { currentUser } from "@/lib/auth/session";
+import type { StreamFrame } from "@/lib/engine/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,7 +11,12 @@ export const dynamic = "force-dynamic";
  * clock, the index and the tape.
  */
 export async function GET(req: Request) {
+  const user = await currentUser();
   const world = await engine.ensureLoaded();
+  // A signed-in viewer's book has to exist before the first frame, or their
+  // account block reads as null until the next request happens to create it.
+  if (user) await engine.ensureBook(user.id);
+  const userId = user?.id ?? null;
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
@@ -25,8 +32,8 @@ export async function GET(req: Request) {
         }
       };
 
-      send(engine.frame(world, true), "snapshot");
-      const unsubscribe = engine.subscribe((frame) => send(frame));
+      send(engine.frame(world, true, userId), "snapshot");
+      const unsubscribe = engine.subscribe(userId, (frame: StreamFrame) => send(frame));
 
       // Keeps intermediaries from buffering the connection shut when the
       // market is paused and no frames are flowing.
