@@ -223,13 +223,18 @@ model MarketEvent {
 }
 
 /// A person with their own account. Password is scrypt-hashed; the salt and
-/// parameters live alongside the digest in `passwordHash`.
+/// parameters live alongside the digest in `passwordHash`. Guests get a row
+/// here too, flagged, so every book hangs off the same machinery.
 model User {
   id           Int      @id @default(autoincrement())
   email        String   @unique
   displayName  String
   passwordHash String
   createdAt    DateTime @default(now())
+  /// A throwaway account from "try as guest". No real email, no usable
+  /// password, and swept once its last session expires — so a visitor can
+  /// trade without handing over any details.
+  isGuest      Boolean  @default(false)
 
   sessions     Session[]
   accounts     Account[]

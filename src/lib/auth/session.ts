@@ -11,6 +11,7 @@ export interface SessionUser {
   id: number;
   email: string;
   displayName: string;
+  isGuest: boolean;
 }
 
 /**
@@ -21,9 +22,9 @@ export interface SessionUser {
  * SHA-256 with no work factor is right here, unlike for passwords: the token
  * is 256 bits of CSPRNG output, so there is no dictionary to walk.
  */
-export async function createSession(userId: number): Promise<void> {
+export async function createSession(userId: number, ttlMs = TTL_MS): Promise<void> {
   const token = randomBytes(32).toString("base64url");
-  const expiresAt = new Date(Date.now() + TTL_MS);
+  const expiresAt = new Date(Date.now() + ttlMs);
 
   await prisma.session.create({
     data: { tokenHash: hash(token), userId, expiresAt },
@@ -48,7 +49,9 @@ export async function currentUser(): Promise<SessionUser | null> {
   const row = await prisma.session
     .findUnique({
       where: { tokenHash: hash(token) },
-      include: { user: { select: { id: true, email: true, displayName: true } } },
+      include: {
+        user: { select: { id: true, email: true, displayName: true, isGuest: true } },
+      },
     })
     .catch(() => null);
   if (!row) return null;

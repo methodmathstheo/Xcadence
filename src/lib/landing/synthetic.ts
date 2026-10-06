@@ -1,47 +1,73 @@
 import { RNG } from "@/lib/rng";
 
 /**
- * Data for the landing page's live panels.
+ * Movement for the landing page's live panels.
  *
- * These are illustrations, not the venue. The landing page sits in front of
- * the login wall, so it cannot reach the engine — and it should not try: a
- * marketing page that waits on a tick loop to boot is a marketing page that
- * sometimes shows nothing.
+ * The artists, photographs, genres and opening prices are real, read from the
+ * active run by `landingRoster()`. What is synthetic is only the *motion*: the
+ * landing page sits in front of the login wall and cannot subscribe to the
+ * engine's stream, so the quotes walk locally from the real opening marks
+ * rather than ticking with the venue.
  *
- * Two consequences shape everything here. Every series starts from a seeded
- * RNG so the server render and the first client render are byte-identical and
- * hydration is quiet; and the listings are symbols rather than people. The
- * venue itself lists real artists, with disclosure, behind the login. The
- * shopfront has no business putting their names next to invented prices.
+ * Every series starts from a seeded RNG, so the server render and the first
+ * client render are byte-identical and hydration is quiet. Nothing here reads
+ * `Date.now()` or `Math.random()`.
  */
 
-/** Ticker symbols. Deliberately codes, not names. */
-export const SYMBOLS = [
+/** Fallback listings, used only on a database with no run seeded yet. */
+const FALLBACK: Seed[] = [
   "AURA", "VELD", "KSMT", "ORBT", "NMBS", "LTHE", "SABR", "DRFT",
   "MRNA", "HALC", "PRSM", "VYNL", "CDNZ", "ECHO", "TNDR", "GLSS",
-] as const;
+].map((name, i) => ({
+  id: -(i + 1),
+  name,
+  genre: "",
+  image: null,
+  listeners: 0,
+  price: 0,
+}));
+
+export interface Seed {
+  id: number;
+  name: string;
+  genre: string;
+  image: string | null;
+  listeners: number;
+  price: number;
+}
 
 export interface Tick {
-  sym: string;
+  id: number;
+  name: string;
+  genre: string;
+  image: string | null;
   price: number;
   prev: number;
+  /**
+   * The opening mark, kept for the life of the walk. This is what the price
+   * reverts toward, so it has to be the level it started at — reverting
+   * toward the current price is reverting toward nothing.
+   */
+  anchor: number;
   /** +1 up, -1 down, 0 unchanged — drives the flash colour. */
   dir: number;
   listeners: number;
 }
 
-/** Opening state. Seeded, so SSR and the first client paint agree. */
-export function initialTicks(seed = 20260901): Tick[] {
+/**
+ * Opening state, from the run's real marks where there are any.
+ *
+ * A missing price or listener count is filled from the seeded RNG rather than
+ * rendered as a zero, so a cold database still produces a believable panel.
+ */
+export function initialTicks(seeds: Seed[] | undefined, seed = 20260901): Tick[] {
+  const list = seeds && seeds.length > 0 ? seeds : FALLBACK;
   const rng = new RNG(seed);
-  return SYMBOLS.map((sym) => {
-    const price = rng.uniform(11, 210);
-    return {
-      sym,
-      price,
-      prev: price,
-      dir: 0,
-      listeners: Math.round(rng.uniform(0.4, 38) * 1_000_000),
-    };
+  return list.map((a) => {
+    const price = a.price > 0 ? a.price : rng.uniform(11, 210);
+    const listeners =
+      a.listeners > 0 ? a.listeners : Math.round(rng.uniform(0.4, 38) * 1_000_000);
+    return { ...a, price, prev: price, anchor: price, dir: 0, listeners };
   });
 }
 
@@ -55,8 +81,10 @@ export function initialTicks(seed = 20260901): Tick[] {
  */
 export function stepTicks(ticks: Tick[], rng: RNG): Tick[] {
   return ticks.map((t) => {
-    const anchor = 60;
-    const pull = (Math.log(anchor) - Math.log(t.price)) * 0.012;
+    // Reverts toward where this listing actually opened rather than a shared
+    // constant, so a 200-credit name and a 20-credit name each stay in their
+    // own band instead of converging on one another.
+    const pull = (Math.log(t.anchor) - Math.log(t.price)) * 0.012;
     const shock = (rng.next() - 0.5) * 0.028;
     const next = Math.max(4, t.price * Math.exp(pull + shock));
     const moved = Math.abs(next - t.price) > 1e-6;
@@ -82,10 +110,12 @@ export interface Candle {
 }
 
 /** A plausible candle series: drifting, with the occasional jump. */
-export function initialCandles(count = 48, seed = 7781): Candle[] {
+export function initialCandles(count = 48, seed = 7781, start = 58): Candle[] {
   const rng = new RNG(seed);
   const out: Candle[] = [];
-  let last = 58;
+  // Walked backwards from the real last price so the series arrives at roughly
+  // where the artist is actually marked, rather than at an invented level.
+  let last = start / Math.exp(0.004 * count);
   for (let i = 0; i < count; i++) {
     out.push(nextCandle(last, rng));
     last = out[out.length - 1].c;

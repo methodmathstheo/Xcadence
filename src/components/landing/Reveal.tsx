@@ -15,6 +15,10 @@ const useIsoLayoutEffect = typeof window === "undefined" ? useEffect : useLayout
 /**
  * Fade-and-rise as a section enters the viewport.
  *
+ * Only applies to sections that start below the fold. Content already in the
+ * viewport on load renders immediately and never animates, so nothing the
+ * visitor can already see is held back.
+ *
  * Starts visible and is only hidden once the observer is attached, so the page
  * is fully readable with JavaScript off and nothing can get stuck invisible if
  * the observer never fires. Honours `prefers-reduced-motion` by skipping the
@@ -36,6 +40,13 @@ export function Reveal({
     const el = ref.current;
     if (!el) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    // Anything already on screen when the page loads is left alone. The
+    // animation is there to give scrolling some life, not to make someone
+    // wait to read the first thing they see — hiding the hero and fading it
+    // back in is a delay with nothing behind it.
+    const box = el.getBoundingClientRect();
+    if (box.top < window.innerHeight && box.bottom > 0) return;
 
     setState("hidden");
     const io = new IntersectionObserver(

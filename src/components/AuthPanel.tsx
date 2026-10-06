@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 
 type Mode = "signin" | "register";
 
@@ -19,7 +18,6 @@ export function AuthPanel({
   next: string;
   initialMode?: Mode;
 }) {
-  const router = useRouter();
   const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -27,32 +25,50 @@ export function AuthPanel({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
+  async function send(action: Mode | "guest") {
     setBusy(true);
     setError(null);
     try {
       const res = await fetch("/api/auth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: mode, email, password, displayName }),
+        body: JSON.stringify({ action, email, password, displayName }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
         setError(body?.error ?? "Something went wrong. Try again.");
+        setBusy(false);
         return;
       }
+
       // Single leading slash only. A crafted `?next=//evil.example` is a
       // protocol-relative URL that the browser treats as another origin, so
       // checking for "/" alone is not enough to keep the redirect internal.
       const safe = next.startsWith("/") && !next.startsWith("//") ? next : "/markets";
-      router.replace(safe);
-      router.refresh();
+
+      // A full document navigation, not router.replace().
+      //
+      // This is the fix for sign-in appearing to need two or three goes. The
+      // old code called router.replace() and then router.refresh(), and the
+      // refresh invalidates the tree the replace is still navigating — the
+      // navigation loses, and you are left sitting on the form with a session
+      // cookie already set and no sign that anything happened. A document
+      // load cannot race itself, and it guarantees the layout re-renders
+      // server-side with the new session rather than from the router cache.
+      //
+      // `busy` is deliberately left set: the page is on its way out, and
+      // flipping the button back to "Open an account" in the meantime reads
+      // as the click having been ignored.
+      window.location.assign(safe);
     } catch {
       setError("Could not reach the exchange. Check your connection.");
-    } finally {
       setBusy(false);
     }
+  }
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    void send(mode);
   }
 
   return (
@@ -134,6 +150,22 @@ export function AuthPanel({
           credits in your account cannot be bought, sold or withdrawn.
         </p>
       </form>
+
+      {/* Outside the form, so pressing Enter in a field never triggers it. */}
+      <div className="mt-4 border-t border-line pt-4">
+        <button
+          type="button"
+          onClick={() => void send("guest")}
+          disabled={busy}
+          className="w-full border border-line-2 px-3 py-2 text-xs text-fg-dim transition-colors hover:border-accent hover:text-fg disabled:opacity-50"
+        >
+          Try as a guest
+        </button>
+        <p className="mt-2 text-[10px] leading-relaxed text-fg-mute">
+          A funded book with no details asked for. It lasts a day and is then
+          deleted — positions and all.
+        </p>
+      </div>
     </div>
   );
 }

@@ -1,7 +1,9 @@
 "use client";
 
 import { useRef } from "react";
+import { Avatar } from "@/components/Avatar";
 import { fmtCredits, fmtPct } from "@/lib/format";
+import type { Seed } from "@/lib/landing/synthetic";
 import { useTicks } from "@/lib/landing/useLive";
 
 /**
@@ -11,15 +13,22 @@ import { useTicks } from "@/lib/landing/useLive";
  * rendered twice and translated by exactly -50% so the loop is seamless; the
  * copy is aria-hidden so a screen reader hears the listings once.
  */
-export function TickerStrip({ speed = 64 }: { speed?: number }) {
+export function TickerStrip({
+  board,
+  speed = 64,
+}: {
+  board: Seed[];
+  speed?: number;
+}) {
   const ref = useRef<HTMLDivElement>(null);
-  const ticks = useTicks(ref, 31337);
+  const ticks = useTicks(ref, board, 31337);
 
   const row = ticks.map((t) => {
     const change = t.prev > 0 ? t.price / t.prev - 1 : 0;
     return (
-      <span key={t.sym} className="flex shrink-0 items-baseline gap-2 px-4">
-        <span className="num text-[11px] tracking-wide text-fg-dim">{t.sym}</span>
+      <span key={t.id} className="flex shrink-0 items-center gap-2 px-4">
+        <Avatar name={t.name} src={t.image} size={18} />
+        <span className="whitespace-nowrap text-[11px] text-fg-dim">{t.name}</span>
         <span className="num text-[11px] text-fg">{fmtCredits(t.price)}</span>
         <span
           className="num text-[10px]"

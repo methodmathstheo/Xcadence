@@ -6,6 +6,7 @@ import { TickerStrip } from "@/components/landing/TickerStrip";
 import { STARTING_CREDITS } from "@/lib/sim/constants";
 import { universeSize } from "@/lib/sim/names";
 import { fmtCompact } from "@/lib/format";
+import { landingRoster } from "@/lib/landing/roster";
 
 export const metadata: Metadata = {
   title: "xcadence — sign in",
@@ -24,7 +25,7 @@ export default async function LoginPage({
 }: {
   searchParams: Promise<{ mode?: string; next?: string }>;
 }) {
-  const { mode, next } = await searchParams;
+  const [{ mode, next }, { board }] = await Promise.all([searchParams, landingRoster()]);
 
   return (
     <div className="flex min-h-[72vh] flex-col">
@@ -55,7 +56,7 @@ export default async function LoginPage({
         </div>
       </div>
 
-      <TickerStrip speed={90} />
+      <TickerStrip board={board} speed={90} />
     </div>
   );
 }

@@ -1,9 +1,11 @@
 "use client";
 
 import { useRef } from "react";
+import { Avatar } from "@/components/Avatar";
 import { LogoMark } from "@/components/Logo";
+import { genreLabel } from "@/lib/music/genre";
 import { fmtCompact, fmtCredits, fmtSignedPct } from "@/lib/format";
-import { book } from "@/lib/landing/synthetic";
+import { book, type Seed } from "@/lib/landing/synthetic";
 import { useCandles, useSimDate, useTicks } from "@/lib/landing/useLive";
 
 const UP = "#3fd39a";
@@ -18,10 +20,16 @@ const ACCENT = "#8f84d3";
  * the same object. A static image would have been less work and would have
  * gone stale the first time the product moved.
  */
-export function MockTerminal() {
+export function MockTerminal({
+  hero,
+  board,
+}: {
+  hero: Seed | null;
+  board: Seed[];
+}) {
   const frame = useRef<HTMLDivElement>(null);
-  const candles = useCandles(frame, 56);
-  const ticks = useTicks(frame);
+  const candles = useCandles(frame, 56, 7781, hero?.price || 58);
+  const ticks = useTicks(frame, board);
   const simDate = useSimDate(frame);
 
   const last = candles[candles.length - 1];
@@ -44,9 +52,18 @@ export function MockTerminal() {
 
       <div className="overflow-hidden rounded-xl border border-line-2/70 bg-panel shadow-[0_28px_80px_-28px_rgba(0,0,0,0.85)]">
         {/* ------------------------------------------------------ chrome */}
-        <div className="flex items-center gap-3 border-b border-line bg-ink/70 px-3 py-2">
-          <LogoMark height={13} />
-          <span className="num text-[11px] text-fg-dim">AURA</span>
+        <div className="flex items-center gap-2.5 border-b border-line bg-ink/70 px-3 py-2">
+          {hero ? (
+            <Avatar name={hero.name} src={hero.image} size={22} />
+          ) : (
+            <LogoMark height={13} />
+          )}
+          <span className="truncate text-[12px] text-fg">{hero?.name ?? "AURA"}</span>
+          {hero?.genre && (
+            <span className="label hidden border border-line-2 px-1.5 py-px text-[9px] sm:inline">
+              {genreLabel(hero.genre)}
+            </span>
+          )}
           <span className="num text-[11px]" style={{ color: change >= 0 ? UP : DOWN }}>
             {fmtCredits(last.c)}
           </span>
@@ -98,19 +115,24 @@ export function MockTerminal() {
         {/* --------------------------------------------------- the tape */}
         <div className="grid grid-cols-2 gap-px border-t border-line bg-line md:grid-cols-4">
           {ticks.slice(0, 4).map((t) => (
-            <div key={t.sym} className="bg-panel px-2.5 py-1.5">
-              <div className="flex items-baseline justify-between">
-                <span className="num text-[10px] text-fg-dim">{t.sym}</span>
-                <span
-                  className={`num text-[11px] ${t.dir > 0 ? "flash-up" : t.dir < 0 ? "flash-down" : ""}`}
-                  style={{ color: t.dir >= 0 ? UP : DOWN }}
-                  key={`${t.sym}-${t.price}`}
-                >
-                  {fmtCredits(t.price)}
-                </span>
-              </div>
-              <div className="label mt-0.5 text-[9px]">
-                {fmtCompact(t.listeners)} listeners
+            <div key={t.id} className="flex items-center gap-2 bg-panel px-2.5 py-1.5">
+              <Avatar name={t.name} src={t.image} size={22} />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="truncate text-[11px] text-fg-dim">{t.name}</span>
+                  <span
+                    className={`num shrink-0 text-[11px] ${
+                      t.dir > 0 ? "flash-up" : t.dir < 0 ? "flash-down" : ""
+                    }`}
+                    style={{ color: t.dir >= 0 ? UP : DOWN }}
+                    key={`${t.id}-${t.price}`}
+                  >
+                    {fmtCredits(t.price)}
+                  </span>
+                </div>
+                <div className="label mt-0.5 truncate text-[9px]">
+                  {t.genre ? genreLabel(t.genre) : `${fmtCompact(t.listeners)} listeners`}
+                </div>
               </div>
             </div>
           ))}

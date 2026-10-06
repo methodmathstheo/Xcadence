@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { RNG } from "@/lib/rng";
 import {
-  initialCandles, initialTicks, nextCandle, stepTicks, type Candle, type Tick,
+  initialCandles, initialTicks, nextCandle, stepTicks,
+  type Candle, type Seed, type Tick,
 } from "@/lib/landing/synthetic";
 
 /** Period of the landing page's own clock. Slow enough to read a number. */
@@ -67,8 +68,12 @@ function useVisibleInterval(
 }
 
 /** A walking set of quotes for the ticker and the rankings panel. */
-export function useTicks(ref: React.RefObject<HTMLElement | null>, seed = 20260901) {
-  const [ticks, setTicks] = useState<Tick[]>(() => initialTicks(seed));
+export function useTicks(
+  ref: React.RefObject<HTMLElement | null>,
+  seeds: Seed[] | undefined,
+  seed = 20260901,
+) {
+  const [ticks, setTicks] = useState<Tick[]>(() => initialTicks(seeds, seed));
   const rng = useRef(new RNG(seed ^ 0x5bf03635));
   useVisibleInterval(ref, () => setTicks((t) => stepTicks(t, rng.current)));
   return ticks;
@@ -79,8 +84,11 @@ export function useCandles(
   ref: React.RefObject<HTMLElement | null>,
   count = 48,
   seed = 7781,
+  start = 58,
 ) {
-  const [candles, setCandles] = useState<Candle[]>(() => initialCandles(count, seed));
+  const [candles, setCandles] = useState<Candle[]>(() =>
+    initialCandles(count, seed, start),
+  );
   const rng = useRef(new RNG(seed ^ 0x1f123bb5));
 
   useVisibleInterval(

@@ -19,7 +19,15 @@ export async function isOwner(user: SessionUser | null): Promise<boolean> {
   const configured = process.env.XCADENCE_OWNER_EMAIL?.trim().toLowerCase();
   if (configured) return user.email.toLowerCase() === configured;
 
-  const first = await prisma.user.findFirst({ orderBy: { id: "asc" }, select: { id: true } });
+  // Guests are excluded from the fallback. Otherwise the first visitor to
+  // click "try as guest" on a fresh database would inherit the power to
+  // reseed the run and wipe everyone's book.
+  if (user.isGuest) return false;
+  const first = await prisma.user.findFirst({
+    where: { isGuest: false },
+    orderBy: { id: "asc" },
+    select: { id: true },
+  });
   return first?.id === user.id;
 }
 

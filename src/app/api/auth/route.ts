@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { engine } from "@/lib/engine/engine";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { createSession, currentUser, destroySession } from "@/lib/auth/session";
+import { createGuest, GUEST_TTL_MS } from "@/lib/auth/guests";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,6 +32,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   }
 
+  if (action === "guest") {
+    const user = await createGuest();
+    await createSession(user.id, GUEST_TTL_MS);
+    await openBook(user.id);
+    return NextResponse.json({ user: { ...user, isGuest: true } });
+  }
+
   const email = String(body?.email ?? "").trim().toLowerCase();
   const password = String(body?.password ?? "");
 
@@ -50,9 +58,9 @@ export async function POST(req: Request) {
         data: { email, displayName, passwordHash: await hashPassword(password) },
         select: { id: true, email: true, displayName: true },
       });
-      await engine.ensureBook(user.id);
       await createSession(user.id);
-      return NextResponse.json({ user });
+      await openBook(user.id);
+      return NextResponse.json({ user: { ...user, isGuest: false } });
     } catch (err) {
       // P2002 is the unique index on email. Reported plainly: this is a
       // private sandbox, not a service where account enumeration matters, and
@@ -74,14 +82,38 @@ export async function POST(req: Request) {
       : await verifyPassword(password, await hashPassword("x")).then(() => false);
     if (!row || !ok) return bad("Email or password is incorrect.", 401);
 
-    await engine.ensureBook(row.id);
     await createSession(row.id);
+    await openBook(row.id);
     return NextResponse.json({
-      user: { id: row.id, email: row.email, displayName: row.displayName },
+      user: {
+        id: row.id,
+        email: row.email,
+        displayName: row.displayName,
+        isGuest: row.isGuest,
+      },
     });
   }
 
   return bad("Unknown action.");
+}
+
+/**
+ * Open the trader's book, best effort.
+ *
+ * Deliberately after the session is issued and deliberately swallowed. A book
+ * is created on demand by every route that needs one, so doing it here is a
+ * convenience — it means a new trader's first page already shows funded cash
+ * rather than filling in a moment later. It is not a reason to fail a sign-in
+ * that has otherwise succeeded, which is what happened when the engine ran
+ * first: the user row was written, the engine threw, no cookie was set, and
+ * the retry was told the email was already taken.
+ */
+async function openBook(userId: number) {
+  try {
+    await engine.ensureBook(userId);
+  } catch (err) {
+    console.error("[auth] could not open book eagerly; deferring", err);
+  }
 }
 
 function bad(error: string, status = 400) {

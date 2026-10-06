@@ -1,9 +1,11 @@
 "use client";
 
 import { useRef } from "react";
+import { Avatar } from "@/components/Avatar";
 import { RNG } from "@/lib/rng";
+import { genreLabel } from "@/lib/music/genre";
 import { fmtCompact, fmtCredits, fmtSignedPct } from "@/lib/format";
-import { equitySeries, survivalCurves } from "@/lib/landing/synthetic";
+import { equitySeries, survivalCurves, type Seed } from "@/lib/landing/synthetic";
 import { useTicks } from "@/lib/landing/useLive";
 
 const UP = "#3fd39a";
@@ -39,9 +41,9 @@ export function Screen({
 // ---------------------------------------------------------------- rankings
 
 /** The ranked board: every listing, ordered, with quotes moving in place. */
-export function MockRankings() {
+export function MockRankings({ board }: { board: Seed[] }) {
   const ref = useRef<HTMLDivElement>(null);
-  const ticks = useTicks(ref, 515);
+  const ticks = useTicks(ref, board, 515);
   const rows = [...ticks]
     .sort((a, b) => b.listeners - a.listeners)
     .slice(0, 7);
@@ -68,21 +70,23 @@ export function MockRankings() {
           {rows.map((t, i) => {
             const change = t.prev > 0 ? t.price / t.prev - 1 : 0;
             return (
-              <div key={t.sym} className="flex items-center gap-2.5 px-3 py-[7px]">
-                <span className="num w-4 text-[10px] text-fg-mute">{i + 1}</span>
-                <span
-                  className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-line-2 text-[8px] text-fg-mute"
-                  aria-hidden
-                >
-                  {t.sym.slice(0, 2)}
+              <div key={t.id} className="flex items-center gap-2.5 px-3 py-[6px]">
+                <span className="num w-4 shrink-0 text-[10px] text-fg-mute">{i + 1}</span>
+                <Avatar name={t.name} src={t.image} size={22} />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[11px] text-fg-dim">{t.name}</span>
+                  {t.genre && (
+                    <span className="label block truncate text-[8px] leading-tight">
+                      {genreLabel(t.genre)}
+                    </span>
+                  )}
                 </span>
-                <span className="num flex-1 text-[11px] text-fg-dim">{t.sym}</span>
-                <span className="num hidden text-[10px] text-fg-mute sm:inline">
+                <span className="num hidden shrink-0 text-[10px] text-fg-mute sm:inline">
                   {fmtCompact(t.listeners)}
                 </span>
                 <span
-                  key={`${t.sym}-${t.price}`}
-                  className={`num w-16 text-right text-[11px] ${
+                  key={`${t.id}-${t.price}`}
+                  className={`num w-16 shrink-0 text-right text-[11px] ${
                     t.dir > 0 ? "flash-up" : t.dir < 0 ? "flash-down" : ""
                   }`}
                   style={{ color: change >= 0 ? UP : DOWN }}
@@ -162,13 +166,13 @@ export function MockEquity() {
 // ---------------------------------------------------------- primary market
 
 /**
- * A royalty slice on offer, with the payments it has actually made.
+ * A royalty slice on offer, with the payments it has made so far.
  *
- * The name is generated — this is the venue's own demo-mode name generator,
- * seeded so it never changes. The live venue lists real artists; a marketing
- * page has no business putting their names beside invented cash flows.
+ * The artist, photograph and genre come from the active run; the cash flows
+ * are a seeded illustration of the shape these take, which is the point being
+ * made — most slices settle below cost and a few pay off enormously.
  */
-export function MockOffering() {
+export function MockOffering({ artist }: { artist: Seed | null }) {
   const rng = new RNG(8812);
   const months = Array.from({ length: 18 }, () =>
     rng.next() < 0.17 ? rng.uniform(0, 40) : rng.uniform(60, 240),
@@ -177,14 +181,20 @@ export function MockOffering() {
 
   return (
     <Screen title="Offerings" meta="primary market">
-      <div className="border-b border-line px-3 py-2.5">
-        <div className="flex items-baseline justify-between">
-          <span className="text-[13px] text-fg">Gilded Harbour</span>
-          <span className="label border border-accent/50 px-1.5 py-px text-[9px] text-accent">
-            Open
-          </span>
+      <div className="flex items-center gap-2.5 border-b border-line px-3 py-2.5">
+        <Avatar name={artist?.name ?? "Offering"} src={artist?.image} size={30} />
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-[13px] text-fg">
+            {artist?.name ?? "Gilded Harbour"}
+          </div>
+          <div className="label mt-0.5 truncate text-[9px]">
+            {artist?.genre ? `${genreLabel(artist.genre)} · ` : ""}4.5% of royalties ·
+            60-month term
+          </div>
         </div>
-        <div className="label mt-1 text-[9px]">4.5% of royalties · 60-month term</div>
+        <span className="label shrink-0 border border-accent/50 px-1.5 py-px text-[9px] text-accent">
+          Open
+        </span>
       </div>
 
       <div className="grid grid-cols-3 gap-px bg-line">

@@ -2,12 +2,14 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { Logo, LogoMark } from "@/components/Logo";
 import { Reveal } from "@/components/landing/Reveal";
+import { GuestButton } from "@/components/landing/GuestButton";
 import { MockTerminal } from "@/components/landing/MockTerminal";
 import { TickerStrip } from "@/components/landing/TickerStrip";
 import {
   MockClock, MockEquity, MockOffering, MockRankings, MockSurvival,
 } from "@/components/landing/panels";
 import { currentUser } from "@/lib/auth/session";
+import { landingRoster } from "@/lib/landing/roster";
 import { BOT_COUNT, HISTORY_MONTHS } from "@/lib/sim/universe";
 import { STARTING_CREDITS } from "@/lib/sim/constants";
 import { universeSize } from "@/lib/sim/names";
@@ -32,7 +34,8 @@ export const metadata: Metadata = {
  * a working panel beside it, and nothing explained twice.
  */
 export default async function HomePage() {
-  const user = await currentUser();
+  const [user, roster] = await Promise.all([currentUser(), landingRoster()]);
+  const { hero, board, offering } = roster;
 
   return (
     <div className="flex flex-col">
@@ -53,9 +56,10 @@ export default async function HomePage() {
             </h1>
 
             <p className="mt-6 max-w-[54ch] text-[15px] leading-relaxed text-fg-dim sm:text-base">
-              Buy and sell royalty shares in {universeSize()} artists against a live
-              automated market maker. The clock never stops, {BOT_COUNT} algorithmic
-              traders push the quotes around with you, and every credit is virtual.
+              Buy and sell royalty shares in {universeSize()} real artists against a
+              live automated market maker. The clock never stops, {BOT_COUNT}{" "}
+              algorithmic traders push the quotes around with you, and every credit is
+              virtual.
             </p>
 
             <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
@@ -67,23 +71,26 @@ export default async function HomePage() {
               ) : (
                 <>
                   <Cta href="/login?mode=register">Open an account</Cta>
-                  <Ghost href="/login">Sign in</Ghost>
+                  <GuestButton />
+                  <Ghost href="/login?mode=signin">Sign in</Ghost>
                 </>
               )}
             </div>
 
             <p className="label mt-5 text-[9px]">
-              Free · No payment details · Nothing to withdraw
+              {user
+                ? "Free · No payment details · Nothing to withdraw"
+                : "Guest access asks for nothing at all"}
             </p>
           </Reveal>
 
           <Reveal delay={120} className="mt-14 sm:mt-16">
-            <MockTerminal />
+            <MockTerminal hero={hero} board={board} />
           </Reveal>
         </div>
       </section>
 
-      <TickerStrip />
+      <TickerStrip board={board} />
 
       {/* ============================================================== scale */}
       <section className="px-5 py-14">
@@ -146,7 +153,7 @@ export default async function HomePage() {
         eyebrow="The board"
         title="Every listing, ranked."
         body="One table, ordered by whatever you care about — monthly listeners, biggest growth, price high to low, rap or R&B. Every name is a link through to that artist's biography, catalogue and full market history."
-        visual={<MockRankings />}
+        visual={<MockRankings board={board} />}
       />
 
       <Feature
@@ -161,7 +168,7 @@ export default async function HomePage() {
         eyebrow="The primary market"
         title="Artists sell a slice of the future."
         body="An emerging artist raises credits against a share of future royalties, and the engine pays that share month by simulated month along whatever path the artist actually takes. Offerings are priced off the market's tier-based hazard estimate while the real hazard is drawn per artist — so sellers who are worse than they look are systematically happy to sell."
-        visual={<MockOffering />}
+        visual={<MockOffering artist={offering} />}
       />
 
       <Feature
@@ -210,16 +217,17 @@ export default async function HomePage() {
             ) : (
               <>
                 <Cta href="/login?mode=register">Open an account</Cta>
-                <Ghost href="/login">Sign in</Ghost>
+                <GuestButton />
               </>
             )}
           </div>
 
-          <p className="num mt-10 max-w-[60ch] text-[10px] leading-relaxed text-fg-mute">
-            Panels on this page are illustrations driven by a seeded generator, and the
-            symbols shown are placeholders. The venue itself lists real artists, with
-            biographies and catalogues from Wikipedia and MusicBrainz; every price,
-            listener count and royalty figure in it is simulated.
+          <p className="num mt-10 max-w-[62ch] text-[10px] leading-relaxed text-fg-mute">
+            Artist names, photographs and genres on this page are real, from Wikipedia
+            and MusicBrainz. Every price, listener count, royalty figure and chart is
+            simulated — generated by a seeded random number generator and describing
+            nobody. No affiliation with or endorsement by any artist named here is
+            implied.
           </p>
         </Reveal>
       </section>

@@ -21,10 +21,31 @@ export function parseGenres(json: string | null | undefined): string[] {
   }
 }
 
+/**
+ * Artists whose displayed genre is picked by hand.
+ *
+ * MusicBrainz orders tags by how many people applied them, which reliably puts
+ * the broadest label first — Playboi Carti comes back "hip hop" ahead of
+ * "rage", the subgenre he is actually credited with defining. These are a
+ * choice *among the tags the sources already attest*, never an invention: the
+ * override is ignored unless the artist genuinely carries that tag, so it
+ * cannot put a label on someone the data does not support.
+ */
+const PREFERRED_TAG: Record<string, string> = {
+  "Playboi Carti": "rage",
+};
+
 /** Primary genre for tables: the most-attested real tag, else the fallback. */
 export function primaryGenre(name: string, stored: string | null | undefined): string {
   const real = parseGenres(stored);
+  const preferred = PREFERRED_TAG[name];
+  if (preferred && real.some((g) => g.toLowerCase() === preferred)) return preferred;
   return real[0] ?? genreFor(name);
+}
+
+/** Genre as a label: "rage" reads as "Rage" where it sits beside a name. */
+export function genreLabel(genre: string): string {
+  return genre.replace(/\b[a-z]/g, (c) => c.toUpperCase());
 }
 
 /** True where the genre shown came from a real source. */
