@@ -1,36 +1,50 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Henry Hamilton · DJ & Producer
 
-## Getting Started
+Portfolio site for Henry Hamilton (@henryyhamilton). Next.js 16, Tailwind 4, no CMS. Content comes from two JSON files.
 
-First, run the development server:
+## Run it
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+npm install
+npm run media      # downloads the Instagram photos into public/media/instagram (do this first, see below)
+npm run dev        # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Deploy on Railway
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Push this folder to a new GitHub repo (`methodmathstheo/henryhamilton`).
+2. Railway → New Project → Deploy from GitHub → pick the repo. Build command `npm run build`, start command `npm start`. Nothing else to set.
+3. Add the custom domain in Railway settings when Henry has one.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Keep this on its own Railway project, separate from twopumptom.
 
-## Learn More
+## Media
 
-To learn more about Next.js, take a look at the following resources:
+`content/instagram.json` holds every post (caption, date, location, media) plus links to Instagram's CDN. Those links expire after a few days, so run `npm run media` once to save the images into `public/media/instagram/` and commit them. The site automatically prefers the local copy when it exists.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Videos: without an Instagram login only the cover frame is available, so reels show their poster and link out to Instagram. To get the actual .mp4 files, run the instaloader script once from your Mac or PC:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+pip install instaloader
+instaloader --login YOUR_IG_USERNAME
+python3 scripts/pull_instagram.py --login YOUR_IG_USERNAME
+```
 
-## Deploy on Vercel
+It saves every photo and video into `public/media/instagram/` using the same filenames the site expects. Commit and push, and the gallery and hero start playing video.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Editing
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `content/venues.json`: the Venues tab. Add an entry per venue (id, name, location, Instagram handle, event, dates). Set `venueId` on a post in `instagram.json` to attach its photos to that venue.
+- `lib/content.ts` → `featured`: which frames appear in the Selected strip on the homepage.
+- `app/page.tsx`: bio copy and the booking section.
+- Colours and fonts: `app/globals.css` (`--color-brass` is the single accent).
+
+## Structure
+
+```
+app/            pages: / (home), /gallery, /venues
+components/     Nav, Footer, Lightbox, MediaGrid, FeaturedStrip, VenueStrip, Reveal
+content/        instagram.json, venues.json
+lib/content.ts  loads the JSON, resolves local vs remote media
+scripts/        fetch_media.mjs (images, no login) and pull_instagram.py (everything, needs login)
+```

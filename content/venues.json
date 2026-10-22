@@ -1,0 +1,56 @@
+[
+  {
+    "id": "studio-338",
+    "name": "Studio 338",
+    "location": "Greenwich, London",
+    "handle": "studio338",
+    "event": "Dance On Arrival, London Summer Closing Festival",
+    "dates": ["2026-09-12"],
+    "note": "1,500+ capacity. One of the first parties Henry ever went to, now behind the decks."
+  },
+  {
+    "id": "safari",
+    "name": "Safari",
+    "location": "London",
+    "handle": "maravilosa__",
+    "event": "Tipsy, with Maravilosa",
+    "dates": ["2026-08-11"],
+    "note": ""
+  },
+  {
+    "id": "doa-birmingham",
+    "name": "Dance On Arrival, Birmingham",
+    "location": "Birmingham",
+    "handle": "danceonarrival",
+    "event": "Open air day party, B2B with Kodie",
+    "dates": ["2026-05-31"],
+    "note": ""
+  },
+  {
+    "id": "white-rabbit-beach-club",
+    "name": "White Rabbit Beach Club",
+    "location": "Phuket, Thailand",
+    "handle": "whiterabbitbeachclub",
+    "event": "Dance On Arrival, Thailand",
+    "dates": ["2025-11-12", "2026-01-28"],
+    "note": "Two trips to the island with the Dance On Arrival crew."
+  },
+  {
+    "id": "baba-beach-club",
+    "name": "Baba Beach Club",
+    "location": "Phuket, Thailand",
+    "handle": "babababeachclub",
+    "event": "Circoloco Ibiza showcase",
+    "dates": ["2026-01-11"],
+    "note": ""
+  },
+  {
+    "id": "doa-london",
+    "name": "Dance On Arrival, London",
+    "location": "London",
+    "handle": "danceonarrival",
+    "event": "Dance On Arrival",
+    "dates": ["2025-11-09"],
+    "note": ""
+  }
+]
