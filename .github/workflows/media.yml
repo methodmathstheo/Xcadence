@@ -1,0 +1,40 @@
+name: Pull Instagram media
+
+# Downloads Henry's Instagram photos and clips into public/media/instagram and commits them,
+# so the site never depends on Instagram's expiring CDN links.
+# Runs on every push that touches the content, and can be started by hand from the Actions tab.
+
+on:
+  push:
+    paths:
+      - "content/instagram.json"
+      - "scripts/fetch_media.mjs"
+      - ".github/workflows/media.yml"
+  workflow_dispatch:
+  schedule:
+    - cron: "17 4 * * 1" # Mondays, in case anything was missed
+
+permissions:
+  contents: write
+
+jobs:
+  media:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Fetch media
+        run: node scripts/fetch_media.mjs
+      - name: Commit media
+        run: |
+          git config user.name "media-bot"
+          git config user.email "actions@github.com"
+          git add public/media/instagram
+          if git diff --cached --quiet; then
+            echo "Nothing new."
+          else
+            git commit -m "Add Instagram media"
+            git push
+          fi

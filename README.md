@@ -1,6 +1,6 @@
 # Henry Hamilton · DJ & Producer
 
-Portfolio site for Henry Hamilton (@henryyhamilton). Next.js 16, Tailwind 4, no CMS. Content comes from two JSON files.
+Portfolio site for Henry Hamilton (@henryyhamilton, SoundCloud: twitch_tk). Next.js 16, Tailwind 4, no CMS. Content comes from two JSON files.
 
 ## Run it
 
@@ -20,9 +20,13 @@ Keep this on its own Railway project, separate from twopumptom.
 
 ## Media
 
-`content/instagram.json` holds every post (caption, date, location, media) plus links to Instagram's CDN. Those links expire after a few days, so run `npm run media` once to save the images into `public/media/instagram/` and commit them. The site automatically prefers the local copy when it exists.
+`content/instagram.json` holds every post (caption, date, location, media). The site prefers a local copy in `public/media/instagram/` and falls back to Instagram's CDN while one is missing.
 
-Videos: without an Instagram login only the cover frame is available, so reels show their poster and link out to Instagram. To get the actual .mp4 files, run the instaloader script once from your Mac or PC:
+Three things keep the media local, so nothing depends on expiring Instagram links:
+
+1. `npm run media` (also runs automatically before every `npm run build`, including on Railway). It reads Instagram's public embed page for each post and downloads the photos and the .mp4 clips. No login needed.
+2. The GitHub Action in `.github/workflows/media.yml` runs the same script after every push and commits the files, so the repo carries its own copies.
+3. If Instagram blocks a network, run the script from a home connection, or use the instaloader route below (needs an Instagram login; also picks up the four older posts the logged-out profile hides):
 
 ```
 pip install instaloader
@@ -37,7 +41,7 @@ It saves every photo and video into `public/media/instagram/` using the same fil
 - `content/venues.json`: the Venues tab. Add an entry per venue (id, name, location, Instagram handle, event, dates). Set `venueId` on a post in `instagram.json` to attach its photos to that venue.
 - `lib/content.ts` → `featured`: which frames appear in the Selected strip on the homepage.
 - `app/page.tsx`: bio copy and the booking section.
-- Colours and fonts: `app/globals.css` (`--color-brass` is the single accent).
+- Colours and fonts: `app/globals.css` (`--color-acid` is the single accent; Anton for display, Inter for body, JetBrains Mono for labels).
 
 ## Structure
 

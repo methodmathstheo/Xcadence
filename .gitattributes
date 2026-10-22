@@ -1,0 +1,2 @@
+public/media/**/*.mp4 -diff
+public/media/**/*.jpg -diff

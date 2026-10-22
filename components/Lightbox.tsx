@@ -18,7 +18,7 @@ function linkify(text: string) {
         href={`https://www.instagram.com/${part.slice(1).replace(/\.$/, "")}/`}
         target="_blank"
         rel="noreferrer"
-        className="text-brass hover:underline"
+        className="text-acid hover:underline"
       >
         {part}
       </a>
@@ -71,10 +71,10 @@ export default function Lightbox({ items, index, onClose, onIndex }: Props) {
       }}
     >
       <div className="flex items-center justify-between px-5 py-5 sm:px-8">
-        <span className="eyebrow">
+        <span className="mono">
           {index! + 1} / {items.length}
         </span>
-        <button onClick={onClose} className="eyebrow hover:text-bone transition-colors" aria-label="Close">
+        <button onClick={onClose} className="mono hover:text-bone transition-colors" aria-label="Close">
           Close
         </button>
       </div>
@@ -109,15 +109,15 @@ export default function Lightbox({ items, index, onClose, onIndex }: Props) {
       <div className="px-5 pb-6 pt-4 sm:px-8" onClick={(e) => e.stopPropagation()}>
         <div className="mx-auto max-w-2xl">
           <div className="flex items-baseline justify-between gap-4">
-            <p className="eyebrow">
+            <p className="mono">
               {date}
               {item.location ? ` · ${item.location}` : ""}
             </p>
             <div className="flex gap-4">
-              <button onClick={() => setShowCaption((s) => !s)} className="eyebrow hover:text-bone transition-colors">
+              <button onClick={() => setShowCaption((s) => !s)} className="mono hover:text-bone transition-colors">
                 {showCaption ? "Hide caption" : "Caption"}
               </button>
-              <a href={item.postUrl} target="_blank" rel="noreferrer" className="eyebrow hover:text-bone transition-colors">
+              <a href={item.postUrl} target="_blank" rel="noreferrer" className="mono hover:text-bone transition-colors">
                 Instagram ↗
               </a>
             </div>

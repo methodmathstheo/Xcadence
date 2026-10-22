@@ -7,26 +7,28 @@ const tabs = [
   { href: "/", label: "Home" },
   { href: "/gallery", label: "Gallery" },
   { href: "/venues", label: "Venues" },
+  { href: "/#listen", label: "Listen" },
   { href: "/#book", label: "Book" },
 ];
 
 export default function Nav() {
   const path = usePathname();
   return (
-    <header className="fixed inset-x-0 top-0 z-40 mix-blend-difference">
-      <nav className="flex items-center justify-between px-5 py-5 sm:px-8 lg:px-12">
-        <Link href="/" className="serif text-xl leading-none tracking-tight">
+    <header className="fixed inset-x-0 top-0 z-40">
+      <nav className="flex items-center justify-between px-5 py-4 sm:px-8 lg:px-12">
+        <Link href="/" className="display text-2xl leading-none text-bone">
           HH
         </Link>
-        <ul className="flex items-center gap-5 sm:gap-8">
+        <ul className="flex items-center gap-4 sm:gap-7">
           {tabs.map((t) => {
-            const active = t.href === "/" ? path === "/" : path.startsWith(t.href.replace("/#book", "/__never"));
+            const isHash = t.href.includes("#");
+            const active = !isHash && (t.href === "/" ? path === "/" : path.startsWith(t.href));
             return (
               <li key={t.href}>
                 <Link
                   href={t.href}
-                  className={`eyebrow transition-colors duration-300 hover:text-bone ${active ? "text-bone" : ""}`}
-                  style={active ? { color: "var(--color-brass)" } : undefined}
+                  className="mono transition-colors duration-300 hover:text-bone"
+                  style={active ? { color: "var(--color-acid)" } : undefined}
                 >
                   {t.label}
                 </Link>

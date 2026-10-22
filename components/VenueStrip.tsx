@@ -17,7 +17,7 @@ export default function VenueStrip({ items }: { items: ResolvedMedia[] }) {
           </div>
         ))}
       </div>
-      {items.length > 4 && <p className="eyebrow mt-2 text-right">+{items.length - 4} more</p>}
+      {items.length > 4 && <p className="mono mt-2 text-right">+{items.length - 4} more</p>}
       <Lightbox items={items} index={open} onClose={() => setOpen(null)} onIndex={setOpen} />
     </>
   );

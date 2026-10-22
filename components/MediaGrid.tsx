@@ -66,8 +66,8 @@ export default function MediaGrid({ items, filters = true }: { items: ResolvedMe
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className="eyebrow transition-colors hover:text-bone"
-              style={filter === f ? { color: "var(--color-brass)" } : undefined}
+              className="mono transition-colors hover:text-bone"
+              style={filter === f ? { color: "var(--color-acid)" } : undefined}
             >
               {f}
             </button>
