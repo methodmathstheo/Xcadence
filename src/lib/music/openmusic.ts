@@ -15,6 +15,8 @@
  * burst.
  */
 
+import { UK_ACTS } from "@/lib/sim/names";
+
 const UA = "xcadence/0.1 ( royalty-exchange-simulation; local use )";
 const MB = "https://musicbrainz.org/ws/2";
 const WIKI = "https://en.wikipedia.org/api/rest_v1";
@@ -109,6 +111,7 @@ export interface OpenProfile {
  * attaching the wrong person's catalogue to a row is worse than an empty one.
  */
 async function findMbArtist(name: string) {
+  const home = UK_ACTS.has(name) ? "GB" : "US";
   const url =
     `${MB}/artist?query=${encodeURIComponent(`artist:"${name}"`)}` +
     `&fmt=json&limit=5`;
@@ -130,10 +133,11 @@ async function findMbArtist(name: string) {
   const exact = data.artists.filter((a) => norm(a.name) === target);
   if (exact.length === 0) return null;
 
-  // Where several artists share a name, prefer the US one, then the best score.
+  // Where several artists share a name, prefer the act's home country (US
+  // unless the roster marks it as a UK act), then the best score.
   exact.sort((a, b) => {
-    const ac = a.country === "US" ? 1 : 0;
-    const bc = b.country === "US" ? 1 : 0;
+    const ac = a.country === home ? 1 : 0;
+    const bc = b.country === home ? 1 : 0;
     if (ac !== bc) return bc - ac;
     return (b.score ?? 0) - (a.score ?? 0);
   });
@@ -246,9 +250,26 @@ async function fetchWikidataGenres(title: string): Promise<string[] | null> {
     .filter((v): v is string => Boolean(v));
 }
 
+/**
+ * Wikipedia titles for roster names whose bare title is a different subject:
+ * a common word, a company or another person. A wrong guess here 404s and
+ * leaves the biography empty, which is the safe failure; the bare name could
+ * attach the wrong subject entirely.
+ */
+const WIKI_TITLE: Record<string, string> = {
+  "Dave": "Dave (rapper)",
+  "Disclosure": "Disclosure (band)",
+  "Bicep": "Bicep (duo)",
+  "FISHER": "Fisher (musician)",
+  "MK": "Marc Kinchen",
+  "67": "67 (group)",
+  "Prospa": "Prospa (duo)",
+  "Nines": "Nines (rapper)",
+};
+
 /** Wikipedia summary: biography extract plus a freely-licensed photograph. */
 async function fetchWiki(name: string) {
-  const title = encodeURIComponent(name.replace(/\s+/g, "_"));
+  const title = encodeURIComponent((WIKI_TITLE[name] ?? name).replace(/\s+/g, "_"));
   const data = await getJson<{
     extract?: string;
     type?: string;

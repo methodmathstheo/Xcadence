@@ -13,7 +13,7 @@ export interface ArtistSummary {
   /** Real tags from MusicBrainz or Wikidata. Empty where neither has any. */
   genres: string[];
   /** Which chart the artist trades on. */
-  category: "rap" | "rnb";
+  category: "rap" | "rnb" | "house";
   tier: string;
   active: boolean;
   debutMs: number;

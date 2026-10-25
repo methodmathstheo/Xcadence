@@ -45,10 +45,11 @@ const PRESETS: { id: string; label: string; key: SortKey; dir: 1 | -1 }[] = [
   { id: "priceAsc", label: "Price low → high", key: "price", dir: -1 },
 ];
 
-const CHARTS: { id: "all" | "rap" | "rnb"; label: string }[] = [
+const CHARTS: { id: "all" | "rap" | "rnb" | "house"; label: string }[] = [
   { id: "all", label: "All" },
   { id: "rap", label: "Rap" },
   { id: "rnb", label: "R&B" },
+  { id: "house", label: "House" },
 ];
 
 export function RankingsTable({
@@ -64,7 +65,7 @@ export function RankingsTable({
   const [sort, setSort] = useState<SortKey>("listeners");
   const [dir, setDir] = useState<1 | -1>(1);
   const [query, setQuery] = useState("");
-  const [chart, setChart] = useState<"all" | "rap" | "rnb">("all");
+  const [chart, setChart] = useState<"all" | "rap" | "rnb" | "house">("all");
   const [tier, setTier] = useState<string>("all");
   const [limit, setLimit] = useState(defaultLimit);
   const [detailed, setDetailed] = useState(false);

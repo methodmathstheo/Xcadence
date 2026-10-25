@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ROSTER } from "@/lib/sim/names";
 
 export const metadata: Metadata = {
   title: "Methodology — xcadence",
@@ -23,7 +24,7 @@ export default function MethodologyPage() {
         </p>
         <p>
           <Strong>Every artist is real, and so is everything factual about them.</Strong> The
-          exchange lists {"{"}253{"}"} real US rap and R&amp;B acts. Their photographs and
+          exchange lists {ROSTER.length} real US and UK rap, drill, R&amp;B and house acts. Their photographs and
           biographies come from Wikipedia, their identities and catalogues from MusicBrainz, and
           their cover art from the Cover Art Archive — all open sources, fetched live and cached.
           There are no invented artists on the exchange and no invented releases anywhere in it.

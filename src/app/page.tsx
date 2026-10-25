@@ -152,7 +152,7 @@ export default async function HomePage() {
       <Feature
         eyebrow="The board"
         title="Every listing, ranked."
-        body="One table, ordered by whatever you care about — monthly listeners, biggest growth, price high to low, rap or R&B. Every name is a link through to that artist's biography, catalogue and full market history."
+        body="One table, ordered by whatever you care about — monthly listeners, biggest growth, price high to low, rap, R&B or house. Every name is a link through to that artist's biography, catalogue and full market history."
         visual={<MockRankings board={board} />}
       />
 
