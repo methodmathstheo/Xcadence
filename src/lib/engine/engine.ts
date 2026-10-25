@@ -13,6 +13,7 @@ import { ensureHeadroom, lmsrPrice } from "@/lib/sim/lmsr";
 import { monthKey, monthKeyToMs, MS_DAY, SPEEDS } from "@/lib/sim/time";
 import type { Tier } from "@/lib/sim/constants";
 import { getOrCreateRun, resetRun } from "@/lib/sim/run";
+import { syncRoster } from "@/lib/sim/universe";
 import { runOrderFlow } from "@/lib/engine/bots";
 import { spawnArtists } from "@/lib/engine/entry";
 import { accrueRoyalties, refreshOfferings } from "@/lib/engine/offerings";
@@ -79,6 +80,9 @@ class Engine {
 
   private async load(): Promise<World> {
     const run = await getOrCreateRun();
+    // Admit any roster names added since this run was created, without a
+    // reseed. Failure must not stop the venue coming up.
+    await syncRoster(run.id).catch((e) => console.error("[roster] sync failed", e));
     const [artists, bots, accounts, positions, offerings, offeringPositions] =
       await Promise.all([
         prisma.artist.findMany({ where: { runId: run.id } }),
