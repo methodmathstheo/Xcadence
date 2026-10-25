@@ -136,11 +136,29 @@ export const ROSTER_HOUSE = [
   "Moodymann", "Theo Parrish",
 ] as const;
 
+/** Second batch, appended after the first for the same reason. */
+export const ROSTER_RAP_ADDED_2 = [
+  // UK
+  "Fredo", "LD", "Dimzy",
+  // US
+  "Lelo", "Pluto",
+] as const;
+export const ROSTER_HOUSE_ADDED_2 = [
+  // UK
+  "Luke Dean", "Notion", "Shadow Child", "Kideko", "wAFF",
+  "Steve Lawler", "Nathan Dawe", "Riton",
+  // US
+  "Westend", "Nala", "Ranger Trucco", "J. Worra", "Gene Farris",
+  "Kenny Dope", "DJ Pierre",
+] as const;
+
 export const ROSTER = [
   ...ROSTER_RAP,
   ...ROSTER_RNB,
   ...ROSTER_RAP_ADDED,
   ...ROSTER_HOUSE,
+  ...ROSTER_RAP_ADDED_2,
+  ...ROSTER_HOUSE_ADDED_2,
 ] as const;
 
 /**
@@ -150,6 +168,17 @@ export const ROSTER = [
 export const UK_ACTS = new Set<string>([
   ...ROSTER_RAP_ADDED.slice(ROSTER_RAP_ADDED.indexOf("OFB")),
   ...ROSTER_HOUSE.slice(0, ROSTER_HOUSE.indexOf("John Summit")),
+  "Fredo", "LD", "Dimzy",
+  ...ROSTER_HOUSE_ADDED_2.slice(0, ROSTER_HOUSE_ADDED_2.indexOf("Westend")),
+]);
+
+/**
+ * Names too generic for MusicBrainz's exact-name match to be trusted: it would
+ * as likely return an unrelated act as the right one. These skip the catalogue
+ * lookup; an empty discography is better than someone else's.
+ */
+export const SKIP_MB_LOOKUP = new Set<string>([
+  "Fredo", "LD", "Lelo", "Pluto", "Notion", "Nala", "Westend", "Riton", "67",
 ]);
 
 export type Category = "rap" | "rnb" | "house";
@@ -184,8 +213,8 @@ export function universeSize(): number {
   return isDemo() ? 520 : ROSTER.length;
 }
 
-const RAP_SET = new Set<string>([...ROSTER_RAP, ...ROSTER_RAP_ADDED]);
-const HOUSE_SET = new Set<string>(ROSTER_HOUSE);
+const RAP_SET = new Set<string>([...ROSTER_RAP, ...ROSTER_RAP_ADDED, ...ROSTER_RAP_ADDED_2]);
+const HOUSE_SET = new Set<string>([...ROSTER_HOUSE, ...ROSTER_HOUSE_ADDED_2]);
 
 /** Which chart an artist belongs to. */
 export function categoryOf(name: string): Category {

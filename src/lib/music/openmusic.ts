@@ -15,7 +15,7 @@
  * burst.
  */
 
-import { UK_ACTS } from "@/lib/sim/names";
+import { SKIP_MB_LOOKUP, UK_ACTS } from "@/lib/sim/names";
 
 const UA = "xcadence/0.1 ( royalty-exchange-simulation; local use )";
 const MB = "https://musicbrainz.org/ws/2";
@@ -111,6 +111,7 @@ export interface OpenProfile {
  * attaching the wrong person's catalogue to a row is worse than an empty one.
  */
 async function findMbArtist(name: string) {
+  if (SKIP_MB_LOOKUP.has(name)) return null;
   const home = UK_ACTS.has(name) ? "GB" : "US";
   const url =
     `${MB}/artist?query=${encodeURIComponent(`artist:"${name}"`)}` +
@@ -265,6 +266,14 @@ const WIKI_TITLE: Record<string, string> = {
   "67": "67 (group)",
   "Prospa": "Prospa (duo)",
   "Nines": "Nines (rapper)",
+  "Fredo": "Fredo (rapper)",
+  "LD": "LD (rapper)",
+  "Lelo": "Lelo (rapper)",
+  "Pluto": "Pluto (rapper)",
+  "Notion": "Notion (DJ)",
+  "Nala": "Nala (DJ)",
+  "Westend": "Westend (DJ)",
+  "Riton": "Riton (musician)",
 };
 
 /** Wikipedia summary: biography extract plus a freely-licensed photograph. */
