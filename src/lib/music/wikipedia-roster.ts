@@ -292,7 +292,10 @@ export async function ensureRosterCandidates(): Promise<void> {
 }
 
 export async function loadRosterCandidates(): Promise<Candidate[]> {
-  const rows = await prisma.rosterCandidate.findMany({ where: { NOT: { key: { startsWith: "__" } } } });
+  // Filtered here rather than in the query: a startsWith("__") condition
+  // compiles to LIKE, where every underscore is a wildcard, and matched
+  // every key on the table.
+  const rows = (await prisma.rosterCandidate.findMany()).filter((r) => !r.key.startsWith("__"));
   return rows.map((r) => ({
     key: r.key,
     name: r.name,
