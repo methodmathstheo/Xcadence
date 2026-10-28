@@ -171,8 +171,10 @@ async function categoryMembers(title: string, deadline: number): Promise<string[
       return titles.length ? titles : null;
     }
     if (data.error) {
+      // The API answered: the category is invalid or otherwise unusable.
+      // That is an answer, not a failure to read, so the pass stays complete.
       console.warn(`[roster] Category:${title}: ${data.error.code} ${data.error.info ?? ""}`);
-      return null;
+      return titles;
     }
     for (const m of data.query?.categorymembers ?? []) titles.push(m.title);
     cont = data.continue?.cmcontinue;
@@ -188,9 +190,11 @@ export async function refreshRosterCandidates(): Promise<number> {
   const byKey = new Map<string, Candidate>();
   const missing: string[] = [];
   let fetched = 0;
+  let outOfTime = false;
   for (const c of CATEGORIES) {
     if (Date.now() > deadline) {
       console.warn(`[roster] out of time after ${fetched} categories; the rest wait for the next refresh`);
+      outOfTime = true;
       break;
     }
     const titles = await categoryMembers(c.title, deadline);
@@ -212,7 +216,9 @@ export async function refreshRosterCandidates(): Promise<number> {
     console.warn(`[roster] only ${byKey.size} candidates found; keeping the previous set`);
     return 0;
   }
-  const complete = fetched + missing.length === CATEGORIES.length;
+  // Complete means every category was read. An unread one (throttled, timed
+  // out) is not an answer, so the pass is retried until it is.
+  const complete = !outOfTime && missing.length === 0;
   // A partial pass is stored but dated stale, so the next boot tries again.
   const now = complete ? Date.now() : Date.now() - STALE_MS - 1;
   const rows = [...byKey.values()];
@@ -240,11 +246,14 @@ function q(s: string): string {
 export async function ensureRosterCandidates(): Promise<void> {
   try {
     const latest = (await prisma.$queryRawUnsafe(
-      `SELECT MAX("fetchedAt") AS t, COUNT(*) AS n FROM "RosterCandidate"`,
-    )) as { t: number | null; n: number | bigint }[];
+      `SELECT MAX("fetchedAt") AS t, COUNT(*) AS n, COUNT(DISTINCT "chart") AS charts FROM "RosterCandidate"`,
+    )) as { t: number | null; n: number | bigint; charts: number | bigint }[];
     const n = Number(latest[0]?.n ?? 0);
     const t = Number(latest[0]?.t ?? 0);
-    if (n > 0 && Date.now() - t < STALE_MS) return;
+    const charts = Number(latest[0]?.charts ?? 0);
+    // A set with no R&B or house candidates in it is not a complete pass,
+    // whatever it was dated.
+    if (n > 0 && charts >= 3 && Date.now() - t < STALE_MS) return;
     await refreshRosterCandidates();
   } catch (e) {
     console.error("[roster] candidate refresh failed", e);
