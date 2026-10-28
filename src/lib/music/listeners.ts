@@ -115,9 +115,9 @@ export async function refreshListenerSnapshot(): Promise<number> {
     const prev = byKey.get(k);
     if (!prev || r.listeners > prev.listeners) byKey.set(k, r);
   }
-  // A partial snapshot is still better than none, but it is dated as if it
-  // were nearly stale so the next boot tries for the whole thing again.
-  const now = complete ? Date.now() : Date.now() - STALE_MS + 3600_000;
+  // A partial snapshot is still better than none, but it is dated stale so
+  // the next boot tries for the whole thing again.
+  const now = complete ? Date.now() : Date.now() - STALE_MS - 1;
   const entries = [...byKey.entries()];
   await prisma.$transaction(async (tx) => {
     await tx.$executeRawUnsafe(`DELETE FROM "StreamingFigure"`);

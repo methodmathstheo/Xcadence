@@ -21,7 +21,7 @@ const API = "https://en.wikipedia.org/w/api.php";
 const UA = "xcadence/0.1 ( royalty-exchange-simulation; roster discovery )";
 const STALE_MS = 7 * 24 * 3600 * 1000;
 /** Boot waits on this, so it gives up rather than run long. */
-const DEADLINE_MS = 150_000;
+const DEADLINE_MS = 240_000;
 
 /**
  * Category → chart and country. Order matters where an artist sits in more
@@ -111,6 +111,16 @@ export function displayName(title: string): string {
   return title.replace(/\s+\([^)]*\)\s*$/, "").trim();
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Members of one category, following continuation. Null means the category
+ * could not be read (an API error or repeated transport failure); an empty
+ * array is a category that exists and has no article in it.
+ *
+ * Requests are paced and retried with backoff: the first pass fired the
+ * categories back to back and Wikipedia throttled a good share of them.
+ */
 async function categoryMembers(title: string, deadline: number): Promise<string[] | null> {
   const titles: string[] = [];
   let cont: string | undefined;
@@ -125,30 +135,48 @@ async function categoryMembers(title: string, deadline: number): Promise<string[
       cmnamespace: "0",
       format: "json",
       formatversion: "2",
+      maxlag: "5",
     });
     if (cont) params.set("cmcontinue", cont);
-    let data: {
-      error?: { code: string };
+    type Reply = {
+      error?: { code: string; info?: string };
       query?: { categorymembers?: { title: string }[] };
       continue?: { cmcontinue?: string };
-    } | null = null;
-    for (let attempt = 0; attempt < 2 && data === null; attempt++) {
+    };
+    let data: Reply | null = null;
+    let lastStatus = "";
+    for (let attempt = 0; attempt < 4 && data === null; attempt++) {
+      if (attempt > 0) await sleep(1500 * 2 ** (attempt - 1));
       try {
         const res = await fetch(`${API}?${params}`, {
           headers: { "User-Agent": UA, Accept: "application/json" },
-          signal: AbortSignal.timeout(15_000),
+          signal: AbortSignal.timeout(20_000),
         });
-        if (res.ok) data = await res.json();
-        else if (res.status === 429 || res.status >= 500) await new Promise((r) => setTimeout(r, 1500));
-        else break;
-      } catch {
-        await new Promise((r) => setTimeout(r, 1500));
+        lastStatus = String(res.status);
+        if (!res.ok) continue;
+        const body = (await res.json()) as Reply;
+        // maxlag asks the API to refuse while the database is behind; that
+        // is a retry, not a missing category.
+        if (body.error?.code === "maxlag") {
+          lastStatus = "maxlag";
+          continue;
+        }
+        data = body;
+      } catch (e) {
+        lastStatus = e instanceof Error ? e.name : "error";
       }
     }
-    if (!data) return titles.length ? titles : null;
-    if (data.error) return null; // invalid category and the like
+    if (!data) {
+      console.warn(`[roster] could not read Category:${title} (${lastStatus})`);
+      return titles.length ? titles : null;
+    }
+    if (data.error) {
+      console.warn(`[roster] Category:${title}: ${data.error.code} ${data.error.info ?? ""}`);
+      return null;
+    }
     for (const m of data.query?.categorymembers ?? []) titles.push(m.title);
     cont = data.continue?.cmcontinue;
+    await sleep(300);
     if (!cont) break;
   }
   return titles;
@@ -179,13 +207,14 @@ export async function refreshRosterCandidates(): Promise<number> {
       byKey.set(key, { key, name, wikiTitle: t, chart: c.chart, country: c.country, source: c.title });
     }
   }
-  if (missing.length) console.warn(`[roster] categories not found: ${missing.join("; ")}`);
+  if (missing.length) console.warn(`[roster] ${missing.length} categories unread this pass: ${missing.join("; ")}`);
   if (byKey.size < 500) {
     console.warn(`[roster] only ${byKey.size} candidates found; keeping the previous set`);
     return 0;
   }
   const complete = fetched + missing.length === CATEGORIES.length;
-  const now = complete ? Date.now() : Date.now() - STALE_MS + 3600_000;
+  // A partial pass is stored but dated stale, so the next boot tries again.
+  const now = complete ? Date.now() : Date.now() - STALE_MS - 1;
   const rows = [...byKey.values()];
   await prisma.$transaction(async (tx) => {
     await tx.$executeRawUnsafe(`DELETE FROM "RosterCandidate"`);
