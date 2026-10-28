@@ -87,6 +87,12 @@ model Artist {
   price     Float
   prevPrice Float
 
+  /// When this listing's size was anchored to its real monthly-listener
+  /// figure (ms since epoch). Null until the one-time anchoring pass has
+  /// seen it; set even for artists with no public figure, so they are not
+  /// re-examined on every boot.
+  anchoredAt Float?
+
   profile   ArtistProfile?
   months    ArtistMonth[]
   prices    PricePoint[]
@@ -361,4 +367,15 @@ model EquityPoint {
   realised    Float
 
   @@index([runId, userId, tMs])
+}
+
+/// A public monthly-listener figure, one row per artist, from the latest
+/// fetch of the Spotify listener rankings. `key` is the normalised name the
+/// roster is matched on. Replaced wholesale on each refresh.
+model StreamingFigure {
+  key        String @id
+  name       String
+  listeners  Float
+  rank       Int
+  capturedAt Float
 }

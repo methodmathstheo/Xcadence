@@ -13,7 +13,8 @@ import { ensureHeadroom, lmsrPrice } from "@/lib/sim/lmsr";
 import { monthKey, monthKeyToMs, MS_DAY, SPEEDS } from "@/lib/sim/time";
 import type { Tier } from "@/lib/sim/constants";
 import { getOrCreateRun, resetRun } from "@/lib/sim/run";
-import { syncRoster } from "@/lib/sim/universe";
+import { anchorRun, syncRoster } from "@/lib/sim/universe";
+import { ensureListenerSnapshot } from "@/lib/music/listeners";
 import { runOrderFlow } from "@/lib/engine/bots";
 import { spawnArtists } from "@/lib/engine/entry";
 import { accrueRoyalties, refreshOfferings } from "@/lib/engine/offerings";
@@ -46,6 +47,48 @@ const TRADE_RETENTION = 20_000;
  */
 const PRICE_POINT_RETENTION = 400_000;
 const SERIES_RETENTION = 20_000;
+/**
+ * Artists per UPDATE statement in the flush. 14 columns a row keeps a batch
+ * well under SQLite's bound-parameter ceiling even though the values are
+ * inlined, and a few hundred rows is where the per-statement overhead stops
+ * mattering.
+ */
+const ARTIST_WRITE_BATCH = 400;
+
+/** A number as a SQL literal, with NULL for the absent and 0 for the broken. */
+function lit(x: number | null | undefined): string {
+  if (x === null || x === undefined) return "NULL";
+  return Number.isFinite(x) ? String(x) : "0";
+}
+
+/** A string as a SQL literal. */
+function str(x: string | null | undefined): string {
+  if (x === null || x === undefined) return "NULL";
+  return `'${x.replace(/'/g, "''")}'`;
+}
+
+/**
+ * The flush's artist write as one UPDATE ... FROM (VALUES ...) statement.
+ * SQLite names the columns of a VALUES subquery column1, column2, ... and
+ * supports UPDATE ... FROM from 3.33, well below what Prisma ships.
+ */
+function artistUpdateSql(rows: ArtistState[]): string {
+  const values = rows
+    .map(
+      (a) =>
+        `(${a.id},${str(a.tier)},${a.active ? 1 : 0},${lit(a.exitMs)},${str(a.exitReason)},` +
+        `${lit(a.hazardRate)},${lit(a.driftMu)},${lit(a.listeners)},${lit(a.listeners30)},` +
+        `${lit(a.listeners90)},${lit(a.volatility)},${lit(a.q)},${lit(a.vMax)},${lit(a.price)},${lit(a.prevPrice)})`,
+    )
+    .join(",");
+  return (
+    `UPDATE "Artist" SET tier = v.column2, active = v.column3, exitMs = v.column4, ` +
+    `exitReason = v.column5, hazardRate = v.column6, driftMu = v.column7, listeners = v.column8, ` +
+    `listeners30 = v.column9, listeners90 = v.column10, volatility = v.column11, q = v.column12, ` +
+    `vMax = v.column13, price = v.column14, prevPrice = v.column15 ` +
+    `FROM (VALUES ${values}) AS v WHERE "Artist".id = v.column1`
+  );
+}
 /**
  * Flushes between housekeeping passes. At a flush every five seconds this is
  * about a minute, which is the right order given how fast the bots print.
@@ -80,8 +123,11 @@ class Engine {
 
   private async load(): Promise<World> {
     const run = await getOrCreateRun();
-    // Admit any roster names added since this run was created, without a
-    // reseed. Failure must not stop the venue coming up.
+    // Size the incumbents to their real audience (once), then admit any
+    // roster names added since this run was created, without a reseed.
+    // Neither failure may stop the venue coming up.
+    await ensureListenerSnapshot();
+    await anchorRun(run.id).catch((e) => console.error("[anchor] failed", e));
     await syncRoster(run.id).catch((e) => console.error("[roster] sync failed", e));
     const [artists, bots, accounts, positions, offerings, offeringPositions] =
       await Promise.all([
@@ -544,28 +590,16 @@ class Engine {
           },
         });
 
+        // One statement per few hundred artists rather than one per artist.
+        // The passive flow touches every live market each round, so with a
+        // roster in the thousands the per-row form was most of the flush.
+        const rows: ArtistState[] = [];
         for (const id of dirty) {
           const a = w.artists.get(id);
-          if (!a) continue;
-          await tx.artist.update({
-            where: { id },
-            data: {
-              tier: a.tier,
-              active: a.active,
-              exitMs: a.exitMs,
-              exitReason: a.exitReason,
-              hazardRate: a.hazardRate,
-              driftMu: a.driftMu,
-              listeners: a.listeners,
-              listeners30: a.listeners30,
-              listeners90: a.listeners90,
-              volatility: a.volatility,
-              q: a.q,
-              vMax: a.vMax,
-              price: a.price,
-              prevPrice: a.prevPrice,
-            },
-          });
+          if (a) rows.push(a);
+        }
+        for (let i = 0; i < rows.length; i += ARTIST_WRITE_BATCH) {
+          await tx.$executeRawUnsafe(artistUpdateSql(rows.slice(i, i + ARTIST_WRITE_BATCH)));
         }
 
         for (const { book, positions, account } of bookWork) {

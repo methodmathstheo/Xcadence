@@ -15,7 +15,7 @@
  * burst.
  */
 
-import { SKIP_MB_LOOKUP, UK_ACTS } from "@/lib/sim/names";
+import { SKIP_MB_LOOKUP, UK_ACTS, WIKI_TITLES } from "@/lib/sim/names";
 
 const UA = "xcadence/0.1 ( royalty-exchange-simulation; local use )";
 const MB = "https://musicbrainz.org/ws/2";
@@ -278,7 +278,7 @@ const WIKI_TITLE: Record<string, string> = {
 
 /** Wikipedia summary: biography extract plus a freely-licensed photograph. */
 async function fetchWiki(name: string) {
-  const title = encodeURIComponent((WIKI_TITLE[name] ?? name).replace(/\s+/g, "_"));
+  const title = encodeURIComponent((WIKI_TITLE[name] ?? WIKI_TITLES[name] ?? name).replace(/\s+/g, "_"));
   const data = await getJson<{
     extract?: string;
     type?: string;

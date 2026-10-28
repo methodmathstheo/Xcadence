@@ -75,11 +75,34 @@ const MIN_LISTENERS = 120;
 /** Nothing in the universe may exceed this; the largest real artists sit ~1e8. */
 const MAX_LISTENERS = 160_000_000;
 
-/** Long-run listener level implied by hidden quality. */
+/**
+ * Long-run listener level implied by hidden quality.
+ *
+ * quality 0 → ~200k, quality 1 → ~130M. The top of the curve was raised from
+ * 36M when starting sizes became anchored to real monthly-listener figures:
+ * the largest acts on the roster sit near 1e8, and a ceiling below that had
+ * the reversion term bleeding them down from their real audience every month.
+ */
+export const QUALITY_CURVE = { base: 12.2, slope: 6.5 } as const;
 export function targetListeners(a: Pick<ArtistState, "trueQuality">): number {
-  // quality 0 → ~200k, quality 1 → ~36M. Shifted up from the old curve: every
-  // artist here is a charting act, so nobody sits at hobbyist listener counts.
-  return Math.exp(12.2 + 5.2 * a.trueQuality);
+  return Math.exp(QUALITY_CURVE.base + QUALITY_CURVE.slope * a.trueQuality);
+}
+
+/**
+ * The hidden quality at which an artist's listeners settle at `listeners`.
+ *
+ * Above target, drift and the (stronger) upward reversion balance where
+ *   driftMu(q) = KAPPA_ABOVE * (ln target(q) - ln L) / 12
+ * with driftMu(q) = -0.011 + 0.05 q. Solving for q gives the closed form
+ * below, so an artist anchored at its real audience is also parameterised to
+ * stay there, rather than being pulled towards a level the generator picked.
+ */
+export function qualityForListeners(listeners: number): number {
+  const lnL = Math.log(Math.max(listeners, MIN_LISTENERS));
+  const q =
+    (lnL - QUALITY_CURVE.base + 12 * 0.011 / KAPPA_ABOVE) /
+    (QUALITY_CURVE.slope + 12 * 0.05 / KAPPA_ABOVE);
+  return Math.min(0.98, Math.max(0.05, q));
 }
 
 function reversionPull(listeners: number, target: number): number {

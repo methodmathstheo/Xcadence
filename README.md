@@ -103,10 +103,10 @@ universe on first run, and starts ticking.
 
 `ROSTER_MODE` in `.env` selects what the exchange lists.
 
-- **`real`** (default) — 253 real US rap and R&B artists, with photographs and
+- **`real`** (default) — every established rap, R&B and house artist (2,000+), with photographs and
   biographies from Wikipedia, catalogues from MusicBrainz and sleeves from the
   Cover Art Archive. No API keys required. A background pass fills the cache in
-  about nine minutes at MusicBrainz's one-request-per-second limit.
+  a couple of hours at MusicBrainz's one-request-per-second limit.
 - **`demo`** — generated names, no real people, and no outbound requests at
   all. The market, the engine and every quantitative tool behave identically;
   only the names and the profile lookups change. Demo mode also restores

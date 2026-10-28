@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { ROSTER } from "@/lib/sim/names";
+import { LISTENERS_SNAPSHOT } from "@/lib/sim/roster-data";
 
 export const metadata: Metadata = {
   title: "Methodology — xcadence",
@@ -18,13 +19,22 @@ export default function MethodologyPage() {
 
       <Section title="What the data is">
         <p>
-          <Strong>Every number in this application is generated.</Strong> Listener counts, growth
-          rates, royalty figures, prices, and the hidden quality and hazard parameters behind them
-          are output from a seeded random number generator. No market figure here was measured.
+          <Strong>Every market number in this application is generated, from one real starting
+          point.</Strong> Growth rates, royalty figures, prices, and the hidden quality and hazard
+          parameters behind them are output from a seeded random number generator. The one
+          measured input is the size a listing opens at: each artist&apos;s monthly listeners on
+          Spotify, taken from the public rankings at kworb.net on {LISTENERS_SNAPSHOT} and
+          refreshed weekly for new listings only. That figure sets where an artist starts and
+          the long-run level the dynamics hold it near; everything that happens after the
+          opening — every month&apos;s move, every royalty, every price — is simulated. Artists
+          below the rankings&apos; 500,000-listener floor open at a generated figure under it.
+          No other streaming service publishes per-artist audience figures, so nothing from
+          Apple Music or elsewhere is used.
         </p>
         <p>
           <Strong>Every artist is real, and so is everything factual about them.</Strong> The
-          exchange lists {ROSTER.length} real US and UK rap, drill, R&amp;B and house acts. Their photographs and
+          exchange lists {ROSTER.length} real rap, drill, R&amp;B and house acts: every
+          established act in those genres with a public audience figure, mostly US and UK. Their photographs and
           biographies come from Wikipedia, their identities and catalogues from MusicBrainz, and
           their cover art from the Cover Art Archive — all open sources, fetched live and cached.
           There are no invented artists on the exchange and no invented releases anywhere in it.
