@@ -132,7 +132,9 @@ async function categoryMembers(title: string, deadline: number): Promise<string[
   const titles: string[] = [];
   let cont: string | undefined;
   for (let page = 0; page < 40; page++) {
-    if (Date.now() > deadline) return titles;
+    // Cut short by the deadline means unread, not a shorter category: a
+    // partial list stamped as read would silently drop its remaining members.
+    if (Date.now() > deadline) return null;
     const params = new URLSearchParams({
       action: "query",
       list: "categorymembers",
@@ -175,7 +177,7 @@ async function categoryMembers(title: string, deadline: number): Promise<string[
     }
     if (!data) {
       console.warn(`[roster] could not read Category:${title} (${lastStatus})`);
-      return titles.length ? titles : null;
+      return null;
     }
     if (data.error) {
       // The API answered: the category is invalid or otherwise unusable.
