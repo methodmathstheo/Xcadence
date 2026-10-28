@@ -355,6 +355,45 @@ class Engine {
     return w;
   }
 
+  /**
+   * Keep the roster current while the process runs: refresh the two public
+   * sources when they are stale and admit any artist that now qualifies,
+   * without a reboot. Called hourly from instrumentation; every step is
+   * tolerant of failure because none of it may stop the clock.
+   */
+  async maintainRoster(): Promise<number> {
+    const w = this.world;
+    if (!w) return 0;
+    await ensureListenerSnapshot();
+    await ensureRosterCandidates();
+    let added: ArtistState[] = [];
+    try {
+      added = await syncRoster(w.runId);
+    } catch (e) {
+      console.error("[roster] sync failed", e);
+      return 0;
+    }
+    // The sync wrote rows the loaded world has never seen; splice them in so
+    // they quote and trade like everything else.
+    for (const state of added) {
+      if (w.artists.has(state.id)) continue;
+      w.artists.set(state.id, state);
+      w.order.push(state.id);
+      w.priceRing.set(state.id, [{ t: w.simMs, p: state.price }]);
+      pushTape(w, {
+        id: `listing-${state.id}`,
+        kind: "event",
+        tMs: w.simMs,
+        artistId: state.id,
+        artistName: state.name,
+        text: `${state.name} — new listing, ${state.genre}`,
+        eventKind: "debut",
+        magnitude: 0,
+      });
+    }
+    return added.length;
+  }
+
   private hooksInstalled = false;
 
   /** Last write-behind on the way out, so a restart resumes where it stopped. */

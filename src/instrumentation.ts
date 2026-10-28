@@ -25,6 +25,18 @@ export async function register() {
   const { warmProfiles } = await import("@/lib/music/warmer");
   void warmProfiles(world.runId).catch(() => {});
 
+  // Hourly: refresh the public roster sources if stale and list whoever now
+  // qualifies, then fetch their profiles. Nothing here can stop the clock.
+  const HOUR = 3600 * 1000;
+  setInterval(() => {
+    void engine
+      .maintainRoster()
+      .then((n) => {
+        if (n > 0) void warmProfiles(world.runId).catch(() => {});
+      })
+      .catch((e) => console.error("[roster] maintenance failed", e));
+  }, HOUR).unref?.();
+
   // Clear out guest accounts whose sessions have lapsed. Also not awaited —
   // it is housekeeping, and nothing should wait on it to serve a page.
   const { startGuestSweeper } = await import("@/lib/auth/guests");

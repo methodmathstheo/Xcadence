@@ -440,10 +440,10 @@ function mean(xs: number[]): number {
  * no-op on every boot after the first. Real mode only — demo names are
  * generated per run and have no fixed roster to sync against.
  */
-export async function syncRoster(runId: number): Promise<number> {
-  if (isDemo()) return 0;
+export async function syncRoster(runId: number): Promise<ArtistState[]> {
+  if (isDemo()) return [];
   const run = await prisma.run.findUnique({ where: { id: runId } });
-  if (!run) return 0;
+  if (!run) return [];
 
   const existingRows = await prisma.artist.findMany({ where: { runId }, select: { name: true } });
   const existing = new Set(existingRows.map((a) => a.name));
@@ -484,7 +484,7 @@ export async function syncRoster(runId: number): Promise<number> {
       });
     }
   }
-  if (missing.length === 0) return 0;
+  if (missing.length === 0) return [];
 
   const rng = new RNG(run.seed);
   const nowMk = run.lastMonthKey;
@@ -597,7 +597,7 @@ export async function syncRoster(runId: number): Promise<number> {
 
   const discovered = missing.filter((m) => m.chart !== null).length;
   console.log(`[roster] listed ${states.length} new artists into run ${runId} (${discovered} discovered, ${states.length - discovered} hand-written)`);
-  return states.length;
+  return states;
 }
 
 /** The persisted shape of an artist, for createMany. */
