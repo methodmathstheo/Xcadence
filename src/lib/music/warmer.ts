@@ -48,7 +48,7 @@ export async function warmProfiles(runId: number): Promise<void> {
       runId,
       OR: [{ profile: null }, { profile: { genres: null } }],
     },
-    select: { id: true, name: true },
+    select: { id: true, name: true, wikiTitle: true, country: true },
     orderBy: { listeners: "desc" },
   });
 
@@ -70,7 +70,7 @@ export async function warmProfiles(runId: number): Promise<void> {
   // one-per-second throttle, so racing these would gain nothing and risk a 503.
   for (const a of artists) {
     try {
-      const open = await fetchOpenProfile(a.name);
+      const open = await fetchOpenProfile(a.name, { wikiTitle: a.wikiTitle, country: a.country });
       await prisma.artistProfile.upsert({
         where: { artistId: a.id },
         create: {

@@ -247,7 +247,16 @@ export function universeSize(): number {
 const RAP_SET = new Set<string>([...ROSTER_RAP, ...ROSTER_RAP_ADDED, ...ROSTER_RAP_ADDED_2]);
 const HOUSE_SET = new Set<string>([...ROSTER_HOUSE, ...ROSTER_HOUSE_ADDED_2]);
 
-/** Which chart an artist belongs to. */
+/**
+ * Which chart a listing trades on: the stored chart for discovered artists,
+ * else derived from the name for the hand-written roster.
+ */
+export function chartOf(a: { name: string; chart?: string | null }): Category {
+  if (a.chart === "rap" || a.chart === "rnb" || a.chart === "house") return a.chart;
+  return categoryOf(a.name);
+}
+
+/** Which chart a hand-written roster name belongs to. */
 export function categoryOf(name: string): Category {
   const e = EXPANSION_BY_NAME.get(name);
   if (e) return e.chart;
@@ -282,10 +291,10 @@ export const HOUSE_GENRES = [
  * reseed — the genre column on Artist predates the split and is no longer read
  * for display.
  */
-export function genreFor(name: string): string {
+export function genreFor(name: string, chart?: Category): string {
   const curated = EXPANSION_BY_NAME.get(name)?.genre;
   if (curated) return curated;
-  const c = categoryOf(name);
+  const c = chart ?? categoryOf(name);
   const pool = c === "rap" ? RAP_GENRES : c === "house" ? HOUSE_GENRES : RNB_GENRES;
   let h = 0;
   for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;

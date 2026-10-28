@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { engine } from "@/lib/engine/engine";
-import { categoryOf, isDemo } from "@/lib/sim/names";
+import { chartOf, isDemo } from "@/lib/sim/names";
 import { genreIsReal, parseGenres, primaryGenre } from "@/lib/music/genre";
 import { fetchOpenProfile } from "@/lib/music/openmusic";
 import { fmtSimDate } from "@/lib/sim/time";
@@ -56,7 +56,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
 
   const about = {
     genre: "",
-    category: categoryOf(a.name),
+    category: chartOf(a),
     tier: a.tier,
     debutMs: a.debutMs,
     debutLabel: fmtSimDate(a.debutMs),
@@ -86,7 +86,11 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   const stale = !isDemo() && (!profile || Date.now() - profile.fetchedAt.getTime() > CACHE_MS);
 
   if (stale) {
-    const open = await fetchOpenProfile(a.name);
+    const hints = await prisma.artist.findUnique({
+      where: { id },
+      select: { wikiTitle: true, country: true },
+    });
+    const open = await fetchOpenProfile(a.name, hints ?? {});
     const data = {
       mbid: open.mbid,
       bio: open.bio,

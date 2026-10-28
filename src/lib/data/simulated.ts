@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { monthKey } from "@/lib/sim/time";
 import { dcf, estimateInputs } from "@/lib/quant/dcf";
-import { categoryOf, genreFor } from "@/lib/sim/names";
+import { chartOf, genreFor } from "@/lib/sim/names";
 import type {
   ArtistHistoryPoint,
   ArtistSummary,
@@ -79,7 +79,7 @@ export function toSummary(a: ArtistRow, rank: number): ArtistSummary {
     // The provider maps a bare DB row and has no profile join; real genres are
     // attached by the API routes, which do.
     genres: [],
-    category: categoryOf(a.name),
+    category: chartOf(a),
     tier: a.tier,
     active: a.active,
     debutMs: a.debutMs,

@@ -15,6 +15,7 @@ import type { Tier } from "@/lib/sim/constants";
 import { getOrCreateRun, resetRun } from "@/lib/sim/run";
 import { anchorRun, syncRoster } from "@/lib/sim/universe";
 import { ensureListenerSnapshot } from "@/lib/music/listeners";
+import { ensureRosterCandidates } from "@/lib/music/wikipedia-roster";
 import { runOrderFlow } from "@/lib/engine/bots";
 import { spawnArtists } from "@/lib/engine/entry";
 import { accrueRoyalties, refreshOfferings } from "@/lib/engine/offerings";
@@ -127,6 +128,7 @@ class Engine {
     // roster names added since this run was created, without a reseed.
     // Neither failure may stop the venue coming up.
     await ensureListenerSnapshot();
+    await ensureRosterCandidates();
     await anchorRun(run.id).catch((e) => console.error("[anchor] failed", e));
     await syncRoster(run.id).catch((e) => console.error("[roster] sync failed", e));
     const [artists, bots, accounts, positions, offerings, offeringPositions] =

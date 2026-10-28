@@ -2,6 +2,9 @@ import { prisma } from "@/lib/db";
 import { RNG } from "@/lib/rng";
 import { generateNames, genreFor, GENRES, isDemo, ROSTER, universeSize } from "@/lib/sim/names";
 import { anchorFor, loadFigureIndex, type FigureIndex } from "@/lib/music/listeners";
+import { loadRosterCandidates } from "@/lib/music/wikipedia-roster";
+import { nameKey } from "@/lib/music/name-key";
+import type { Chart } from "@/lib/sim/roster-data";
 import {
   advanceDays,
   applyMarketShock,
@@ -442,31 +445,63 @@ export async function syncRoster(runId: number): Promise<number> {
   const run = await prisma.run.findUnique({ where: { id: runId } });
   if (!run) return 0;
 
-  const existing = new Set(
-    (await prisma.artist.findMany({ where: { runId }, select: { name: true } })).map((a: { name: string }) => a.name),
-  );
-  const roster = ROSTER as readonly string[];
-  const missing = roster
-    .map((name, index) => ({ name, index }))
-    .filter((m) => !existing.has(m.name));
+  const existingRows = await prisma.artist.findMany({ where: { runId }, select: { name: true } });
+  const existing = new Set(existingRows.map((a) => a.name));
+  const existingKeys = new Set(existingRows.map((a) => nameKey(a.name)));
+  const figures = await loadFigureIndex();
+
+  type Missing = {
+    name: string;
+    /** What the artist's RNG stream is keyed on, so a reseed reproduces it. */
+    seed: (string | number)[];
+    chart: Chart | null;
+    wikiTitle: string | null;
+    country: string | null;
+  };
+  const missing: Missing[] = [];
+
+  // The hand-written roster lists unconditionally, keyed by index as before.
+  (ROSTER as readonly string[]).forEach((name, index) => {
+    if (existing.has(name)) return;
+    missing.push({ name, seed: [index], chart: null, wikiTitle: null, country: null });
+    existingKeys.add(nameKey(name));
+  });
+
+  // Discovered candidates list only when a public audience figure exists:
+  // that figure is what "established" means here. Without a complete
+  // snapshot there is nothing to judge by, so they wait for the next boot.
+  if (figures.populated) {
+    for (const c of await loadRosterCandidates()) {
+      if (existingKeys.has(c.key)) continue;
+      if (figures.get(c.name) === null) continue;
+      existingKeys.add(c.key);
+      missing.push({
+        name: c.name,
+        seed: ["wiki", c.key],
+        chart: c.chart,
+        wikiTitle: c.wikiTitle !== c.name ? c.wikiTitle : null,
+        country: c.country ?? null,
+      });
+    }
+  }
   if (missing.length === 0) return 0;
 
   const rng = new RNG(run.seed);
   const nowMk = run.lastMonthKey;
   const nowMs = monthKeyToMs(nowMk);
   const firstMk = nowMk - HISTORY_MONTHS + 1;
-  const figures = await loadFigureIndex();
 
   type Row = { i: number; monthKey: number; dateMs: number; listeners: number; royalty: number; rank: number };
   const states: ArtistState[] = [];
   const anchors: (number | null)[] = [];
   const monthRows: Row[] = [];
 
-  for (const { name, index } of missing) {
-    const r = rng.fork("artist", index);
+  for (const m of missing) {
+    const { name } = m;
+    const r = rng.fork("artist", ...m.seed);
     const anchor = anchorFor(figures, name, r.fork("anchor"));
     anchors.push(anchor);
-    const a = seedArtist(r, name, genreFor(name), nowMs, anchor);
+    const a = seedArtist(r, name, genreFor(name, m.chart ?? undefined), nowMs, anchor);
     const i = states.length;
     a.id = i;
     const own: Row[] = [];
@@ -476,7 +511,7 @@ export async function syncRoster(runId: number): Promise<number> {
     for (let mk = firstMk; mk <= nowMk; mk++) {
       const tMs = monthKeyToMs(mk);
       if (a.debutMs > tMs) continue;
-      const hr = rng.fork("late-hist", index, mk);
+      const hr = rng.fork("late-hist", ...m.seed, mk);
       applyMarketShock(a, rng.fork("hist-market", mk).normal(0, MARKET_SHOCK_SD));
       advanceDays(a, hr, 30);
       monthBoundary(a, hr, tMs);
@@ -495,7 +530,14 @@ export async function syncRoster(runId: number): Promise<number> {
   }
 
   const before = await prisma.artist.count({ where: { runId } });
-  await prisma.artist.createMany({ data: states.map((a, i) => artistRow(runId, a, anchors[i] !== null)) });
+  await prisma.artist.createMany({
+    data: states.map((a, i) => ({
+      ...artistRow(runId, a, anchors[i] !== null),
+      chart: missing[i].chart,
+      wikiTitle: missing[i].wikiTitle,
+      country: missing[i].country,
+    })),
+  });
   const created = await prisma.artist.findMany({
     where: { runId },
     orderBy: { id: "asc" },
@@ -553,7 +595,8 @@ export async function syncRoster(runId: number): Promise<number> {
     }),
   );
 
-  console.log(`[roster] listed ${states.length} new artists into run ${runId}`);
+  const discovered = missing.filter((m) => m.chart !== null).length;
+  console.log(`[roster] listed ${states.length} new artists into run ${runId} (${discovered} discovered, ${states.length - discovered} hand-written)`);
   return states.length;
 }
 

@@ -93,6 +93,14 @@ model Artist {
   /// re-examined on every boot.
   anchoredAt Float?
 
+  /// Which chart the listing trades on (rap | rnb | house). Null for the
+  /// hand-written roster, whose chart is derived from the name.
+  chart     String?
+  /// Wikipedia article title where it differs from the name ("Dave (rapper)").
+  wikiTitle String?
+  /// ISO country code where known; steers the MusicBrainz lookup.
+  country   String?
+
   profile   ArtistProfile?
   months    ArtistMonth[]
   prices    PricePoint[]
@@ -378,4 +386,17 @@ model StreamingFigure {
   listeners  Float
   rank       Int
   capturedAt Float
+}
+
+/// An artist Wikipedia files under one of the roster's genre categories.
+/// Candidates become listings when they also carry a public audience figure.
+/// Replaced wholesale on each refresh.
+model RosterCandidate {
+  key       String @id
+  name      String
+  wikiTitle String
+  chart     String
+  country   String?
+  source    String
+  fetchedAt Float
 }

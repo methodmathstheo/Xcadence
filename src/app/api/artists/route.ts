@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { engine } from "@/lib/engine/engine";
 import { SimulatedDataProvider } from "@/lib/data/simulated";
 import { dcf, estimateInputs } from "@/lib/quant/dcf";
-import { categoryOf } from "@/lib/sim/names";
+import { chartOf } from "@/lib/sim/names";
 import { primaryGenre, parseGenres } from "@/lib/music/genre";
 import { prisma } from "@/lib/db";
 import type { ArtistSummary } from "@/lib/data/provider";
@@ -39,7 +39,7 @@ export async function GET(req: Request) {
       name: a.name,
       genre: primaryGenre(a.name, genreBy.get(a.id)),
       genres: parseGenres(genreBy.get(a.id)),
-      category: categoryOf(a.name),
+      category: chartOf(a),
       tier: a.tier,
       active: a.active,
       debutMs: a.debutMs,

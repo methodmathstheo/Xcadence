@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { engine } from "@/lib/engine/engine";
-import { categoryOf } from "@/lib/sim/names";
+import { chartOf } from "@/lib/sim/names";
 import { primaryGenre, parseGenres } from "@/lib/music/genre";
 import { SimulatedDataProvider } from "@/lib/data/simulated";
 import { dcf, discountSensitivity, estimateInputs } from "@/lib/quant/dcf";
@@ -78,7 +78,7 @@ export async function GET(
       name: a.name,
       genre: primaryGenre(a.name, profileGenres),
       genres: parseGenres(profileGenres),
-      category: categoryOf(a.name),
+      category: chartOf(a),
       tier: a.tier,
       active: a.active,
       debutMs: a.debutMs,

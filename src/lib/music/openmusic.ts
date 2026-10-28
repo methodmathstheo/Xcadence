@@ -110,9 +110,9 @@ export interface OpenProfile {
  * cheerfully return a tribute act or an unrelated act with a similar name, and
  * attaching the wrong person's catalogue to a row is worse than an empty one.
  */
-async function findMbArtist(name: string) {
+async function findMbArtist(name: string, country?: string | null) {
   if (SKIP_MB_LOOKUP.has(name)) return null;
-  const home = UK_ACTS.has(name) ? "GB" : "US";
+  const home = country ?? (UK_ACTS.has(name) ? "GB" : "US");
   const url =
     `${MB}/artist?query=${encodeURIComponent(`artist:"${name}"`)}` +
     `&fmt=json&limit=5`;
@@ -277,8 +277,8 @@ const WIKI_TITLE: Record<string, string> = {
 };
 
 /** Wikipedia summary: biography extract plus a freely-licensed photograph. */
-async function fetchWiki(name: string) {
-  const title = encodeURIComponent((WIKI_TITLE[name] ?? WIKI_TITLES[name] ?? name).replace(/\s+/g, "_"));
+async function fetchWiki(name: string, wikiTitle?: string | null) {
+  const title = encodeURIComponent((wikiTitle ?? WIKI_TITLE[name] ?? WIKI_TITLES[name] ?? name).replace(/\s+/g, "_"));
   const data = await getJson<{
     extract?: string;
     type?: string;
@@ -296,8 +296,11 @@ async function fetchWiki(name: string) {
 }
 
 /** Everything known about one real artist, from open sources. */
-export async function fetchOpenProfile(name: string): Promise<OpenProfile> {
-  const [mb, wiki] = await Promise.all([findMbArtist(name), fetchWiki(name)]);
+/** Hints stored with discovered listings: the article title and home country. */
+export type LookupHints = { wikiTitle?: string | null; country?: string | null };
+
+export async function fetchOpenProfile(name: string, hints: LookupHints = {}): Promise<OpenProfile> {
+  const [mb, wiki] = await Promise.all([findMbArtist(name, hints.country), fetchWiki(name, hints.wikiTitle)]);
   const releases = mb ? await fetchReleases(mb.id) : [];
 
   // MusicBrainz first, Wikidata where it has nothing. If both fail outright the
