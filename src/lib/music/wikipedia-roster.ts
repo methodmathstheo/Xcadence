@@ -28,6 +28,14 @@ const DEADLINE_MS = 240_000;
  * than one: the first match wins, so rap before R&B keeps Drake on the rap
  * chart. A category that does not exist yields nothing and is logged.
  */
+/**
+ * Bump when the category list changes or a stored set must be rebuilt. The
+ * version is kept on a sentinel row, and a stored set from another version
+ * is refreshed whatever its date.
+ */
+const CATEGORY_SET_VERSION = "v2";
+const VERSION_KEY = "__version";
+
 const CATEGORIES: { title: string; chart: Chart; country?: string }[] = [
   // Rap and drill
   { title: "American male rappers", chart: "rap", country: "US" },
@@ -224,6 +232,13 @@ export async function refreshRosterCandidates(): Promise<number> {
   const rows = [...byKey.values()];
   await prisma.$transaction(async (tx) => {
     await tx.$executeRawUnsafe(`DELETE FROM "RosterCandidate"`);
+    // Only a complete pass carries the version; a partial one is rebuilt.
+    if (complete) {
+      await tx.$executeRawUnsafe(
+        `INSERT INTO "RosterCandidate" ("key","name","wikiTitle","chart","country","source","fetchedAt") ` +
+        `VALUES ('${VERSION_KEY}','','','rap',NULL,'${CATEGORY_SET_VERSION}',${now})`,
+      );
+    }
     for (let i = 0; i < rows.length; i += 500) {
       const values = rows
         .slice(i, i + 500)
@@ -246,14 +261,13 @@ function q(s: string): string {
 export async function ensureRosterCandidates(): Promise<void> {
   try {
     const latest = (await prisma.$queryRawUnsafe(
-      `SELECT MAX("fetchedAt") AS t, COUNT(*) AS n, COUNT(DISTINCT "chart") AS charts FROM "RosterCandidate"`,
-    )) as { t: number | null; n: number | bigint; charts: number | bigint }[];
+      `SELECT MAX("fetchedAt") AS t, COUNT(*) AS n FROM "RosterCandidate"`,
+    )) as { t: number | null; n: number | bigint }[];
     const n = Number(latest[0]?.n ?? 0);
     const t = Number(latest[0]?.t ?? 0);
-    const charts = Number(latest[0]?.charts ?? 0);
-    // A set with no R&B or house candidates in it is not a complete pass,
-    // whatever it was dated.
-    if (n > 0 && charts >= 3 && Date.now() - t < STALE_MS) return;
+    const version = await prisma.rosterCandidate.findUnique({ where: { key: VERSION_KEY } });
+    const current = version?.source === CATEGORY_SET_VERSION;
+    if (n > 0 && current && Date.now() - t < STALE_MS) return;
     await refreshRosterCandidates();
   } catch (e) {
     console.error("[roster] candidate refresh failed", e);
@@ -261,7 +275,7 @@ export async function ensureRosterCandidates(): Promise<void> {
 }
 
 export async function loadRosterCandidates(): Promise<Candidate[]> {
-  const rows = await prisma.rosterCandidate.findMany();
+  const rows = await prisma.rosterCandidate.findMany({ where: { key: { not: VERSION_KEY } } });
   return rows.map((r) => ({
     key: r.key,
     name: r.name,
