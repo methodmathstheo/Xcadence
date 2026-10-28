@@ -29,12 +29,11 @@ const DEADLINE_MS = 240_000;
  * chart. A category that does not exist yields nothing and is logged.
  */
 /**
- * Bump when the category list changes or a stored set must be rebuilt. The
- * version is kept on a sentinel row, and a stored set from another version
- * is refreshed whatever its date.
+ * Bump when the category list changes or the stored set must be rebuilt.
+ * Each category's read is stamped with it, and a stamp from another version
+ * does not count.
  */
-const CATEGORY_SET_VERSION = "v2";
-const VERSION_KEY = "__version";
+const CATEGORY_SET_VERSION = "v3";
 
 const CATEGORIES: { title: string; chart: Chart; country?: string }[] = [
   // Rap and drill
@@ -126,8 +125,8 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  * could not be read (an API error or repeated transport failure); an empty
  * array is a category that exists and has no article in it.
  *
- * Requests are paced and retried with backoff: the first pass fired the
- * categories back to back and Wikipedia throttled a good share of them.
+ * Requests are paced at one a second and retried with backoff of 5, 10 and
+ * 20 seconds: faster than that and Wikipedia throttles a good share of them.
  */
 async function categoryMembers(title: string, deadline: number): Promise<string[] | null> {
   const titles: string[] = [];
@@ -154,7 +153,7 @@ async function categoryMembers(title: string, deadline: number): Promise<string[
     let data: Reply | null = null;
     let lastStatus = "";
     for (let attempt = 0; attempt < 4 && data === null; attempt++) {
-      if (attempt > 0) await sleep(1500 * 2 ** (attempt - 1));
+      if (attempt > 0) await sleep(5000 * 2 ** (attempt - 1));
       try {
         const res = await fetch(`${API}?${params}`, {
           headers: { "User-Agent": UA, Accept: "application/json" },
@@ -186,88 +185,106 @@ async function categoryMembers(title: string, deadline: number): Promise<string[
     }
     for (const m of data.query?.categorymembers ?? []) titles.push(m.title);
     cont = data.continue?.cmcontinue;
-    await sleep(300);
+    await sleep(1000);
     if (!cont) break;
   }
   return titles;
 }
 
-/** Pull every category and replace the stored candidates. Returns the count. */
+/** Lower wins where an artist sits in more than one chart's categories. */
+const PRIORITY_SQL = `CASE %s WHEN 'rap' THEN 0 WHEN 'rnb' THEN 1 ELSE 2 END`;
+
+/**
+ * Read every category that has not been read (at this version) within the
+ * week, and store what each one holds. Resumable by design: a category is
+ * committed as soon as it is read, each one carries its own sentinel row
+ * recording when, and a pass that runs out of time or gets throttled leaves
+ * the rest for the next hourly tick. Returns how many categories were read.
+ */
 export async function refreshRosterCandidates(): Promise<number> {
+  const stamps = (await prisma.$queryRawUnsafe(
+    `SELECT "key", "source", "fetchedAt" FROM "RosterCandidate" WHERE substr("key", 1, 6) = '__cat:'`,
+  )) as { key: string; source: string; fetchedAt: number }[];
+  const readAt = new Map(
+    stamps
+      .filter((r) => r.source === CATEGORY_SET_VERSION)
+      .map((r) => [r.key.slice("__cat:".length), Number(r.fetchedAt)] as [string, number]),
+  );
+  const todo = CATEGORIES.filter((c) => Date.now() - (readAt.get(c.title) ?? 0) > STALE_MS);
+  if (todo.length === 0) return 0;
+
   const deadline = Date.now() + DEADLINE_MS;
-  const byKey = new Map<string, Candidate>();
-  const missing: string[] = [];
-  let fetched = 0;
-  let outOfTime = false;
-  for (const c of CATEGORIES) {
+  const unread: string[] = [];
+  let read = 0;
+  for (const c of todo) {
     if (Date.now() > deadline) {
-      console.warn(`[roster] out of time after ${fetched} categories; the rest wait for the next refresh`);
-      outOfTime = true;
+      console.warn(`[roster] out of time with ${todo.length - read - unread.length} categories still to read; the next tick continues`);
       break;
     }
     const titles = await categoryMembers(c.title, deadline);
     if (titles === null) {
-      missing.push(c.title);
+      unread.push(c.title);
       continue;
     }
-    fetched++;
+    const rows = new Map<string, Candidate>();
     for (const t of titles) {
       if (NOT_AN_ARTIST.test(t)) continue;
       const name = displayName(t);
       const key = nameKey(name);
-      if (!key || byKey.has(key)) continue;
-      byKey.set(key, { key, name, wikiTitle: t, chart: c.chart, country: c.country, source: c.title });
+      if (!key || key.startsWith("__") || rows.has(key)) continue;
+      rows.set(key, { key, name, wikiTitle: t, chart: c.chart, country: c.country, source: c.title });
     }
+    await storeCategory(c.title, [...rows.values()]);
+    read++;
   }
-  if (missing.length) console.warn(`[roster] ${missing.length} categories unread this pass: ${missing.join("; ")}`);
-  if (byKey.size < 500) {
-    console.warn(`[roster] only ${byKey.size} candidates found; keeping the previous set`);
-    return 0;
-  }
-  // Complete means every category was read. An unread one (throttled, timed
-  // out) is not an answer, so the pass is retried until it is.
-  const complete = !outOfTime && missing.length === 0;
-  // A partial pass is stored but dated stale, so the next boot tries again.
-  const now = complete ? Date.now() : Date.now() - STALE_MS - 1;
-  const rows = [...byKey.values()];
+  if (unread.length) console.warn(`[roster] ${unread.length} categories unread this pass: ${unread.join("; ")}`);
+  const total = Number(
+    ((await prisma.$queryRawUnsafe(
+      `SELECT COUNT(*) AS n FROM "RosterCandidate" WHERE substr("key", 1, 2) <> '__'`,
+    )) as { n: number | bigint }[])[0]?.n ?? 0,
+  );
+  console.log(`[roster] read ${read} of ${todo.length} categories due; ${total} candidates stored`);
+  return read;
+}
+
+/**
+ * Replace one category's rows and stamp it read. A name already stored from
+ * a higher-priority chart's category keeps that chart; otherwise the newer
+ * read wins, so a category re-read after a week refreshes its members.
+ */
+async function storeCategory(title: string, rows: Candidate[]): Promise<void> {
+  const now = Date.now();
   await prisma.$transaction(async (tx) => {
-    await tx.$executeRawUnsafe(`DELETE FROM "RosterCandidate"`);
-    // Only a complete pass carries the version; a partial one is rebuilt.
-    if (complete) {
-      await tx.$executeRawUnsafe(
-        `INSERT INTO "RosterCandidate" ("key","name","wikiTitle","chart","country","source","fetchedAt") ` +
-        `VALUES ('${VERSION_KEY}','','','rap',NULL,'${CATEGORY_SET_VERSION}',${now})`,
-      );
-    }
-    for (let i = 0; i < rows.length; i += 500) {
+    await tx.$executeRawUnsafe(
+      `DELETE FROM "RosterCandidate" WHERE "source" = ${q(title)} AND substr("key", 1, 2) <> '__'`,
+    );
+    for (let i = 0; i < rows.length; i += 400) {
       const values = rows
-        .slice(i, i + 500)
+        .slice(i, i + 400)
         .map((r) => `('${r.key}',${q(r.name)},${q(r.wikiTitle)},'${r.chart}',${r.country ? q(r.country) : "NULL"},${q(r.source)},${now})`)
         .join(",");
       await tx.$executeRawUnsafe(
-        `INSERT INTO "RosterCandidate" ("key","name","wikiTitle","chart","country","source","fetchedAt") VALUES ${values}`,
+        `INSERT INTO "RosterCandidate" ("key","name","wikiTitle","chart","country","source","fetchedAt") VALUES ${values} ` +
+        `ON CONFLICT("key") DO UPDATE SET "name" = excluded."name", "wikiTitle" = excluded."wikiTitle", ` +
+        `"chart" = excluded."chart", "country" = excluded."country", "source" = excluded."source", "fetchedAt" = excluded."fetchedAt" ` +
+        `WHERE (${PRIORITY_SQL.replace("%s", 'excluded."chart"')}) <= (${PRIORITY_SQL.replace("%s", '"RosterCandidate"."chart"')})`,
       );
     }
-  }, { timeout: 120_000 });
-  console.log(`[roster] ${rows.length} candidates from ${fetched} Wikipedia categories${complete ? "" : " (partial; retrying next boot)"}`);
-  return rows.length;
+    await tx.$executeRawUnsafe(
+      `INSERT INTO "RosterCandidate" ("key","name","wikiTitle","chart","country","source","fetchedAt") ` +
+      `VALUES (${q("__cat:" + title)},'','','rap',NULL,${q(CATEGORY_SET_VERSION)},${now}) ` +
+      `ON CONFLICT("key") DO UPDATE SET "source" = excluded."source", "fetchedAt" = excluded."fetchedAt"`,
+    );
+  }, { timeout: 60_000 });
 }
 
 function q(s: string): string {
   return `'${s.replace(/'/g, "''")}'`;
 }
 
-/** Refresh if there are no candidates or they are stale. Never throws. */
+/** Read whatever is due. Never throws. */
 export async function ensureRosterCandidates(): Promise<void> {
   try {
-    const latest = (await prisma.$queryRawUnsafe(
-      `SELECT MAX("fetchedAt") AS t, COUNT(*) AS n FROM "RosterCandidate"`,
-    )) as { t: number | null; n: number | bigint }[];
-    const n = Number(latest[0]?.n ?? 0);
-    const t = Number(latest[0]?.t ?? 0);
-    const version = await prisma.rosterCandidate.findUnique({ where: { key: VERSION_KEY } });
-    const current = version?.source === CATEGORY_SET_VERSION;
-    if (n > 0 && current && Date.now() - t < STALE_MS) return;
     await refreshRosterCandidates();
   } catch (e) {
     console.error("[roster] candidate refresh failed", e);
@@ -275,7 +292,7 @@ export async function ensureRosterCandidates(): Promise<void> {
 }
 
 export async function loadRosterCandidates(): Promise<Candidate[]> {
-  const rows = await prisma.rosterCandidate.findMany({ where: { key: { not: VERSION_KEY } } });
+  const rows = await prisma.rosterCandidate.findMany({ where: { NOT: { key: { startsWith: "__" } } } });
   return rows.map((r) => ({
     key: r.key,
     name: r.name,
