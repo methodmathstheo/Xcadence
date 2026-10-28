@@ -609,9 +609,37 @@ function artistRow(runId: number, a: ArtistState, anchored: boolean) {
  */
 export async function anchorRun(runId: number): Promise<number> {
   if (isDemo()) return 0;
-  const artists = (await prisma.artist.findMany({
-    where: { runId, anchoredAt: null },
-  })) as Array<ArtistState & { anchoredAt: number | null }>;
+  const rows = await prisma.artist.findMany({ where: { runId, anchoredAt: null } });
+  const artists: ArtistState[] = rows.map((a) => ({
+    id: a.id,
+    name: a.name,
+    genre: a.genre,
+    tier: a.tier as Tier,
+    debutTier: a.debutTier as Tier,
+    debutMs: a.debutMs,
+    active: a.active,
+    exitMs: a.exitMs,
+    exitReason: a.exitReason,
+    trueQuality: a.trueQuality,
+    hazardRate: a.hazardRate,
+    driftMu: a.driftMu,
+    sigma: a.sigma,
+    breakoutP: a.breakoutP,
+    listeners: a.listeners,
+    listeners30: a.listeners30,
+    listeners90: a.listeners90,
+    volatility: a.volatility,
+    royaltyRate: a.royaltyRate,
+    unitScale: a.unitScale,
+    q: a.q,
+    b: a.b,
+    vMax: a.vMax,
+    price: a.price,
+    prevPrice: a.prevPrice,
+    logReturns: [],
+    listenerTrail: [],
+    dirty: false,
+  }));
   const run = await prisma.run.findUnique({ where: { id: runId } });
   if (!run || artists.length === 0) return 0;
   const figures = await loadFigureIndex();
@@ -642,9 +670,6 @@ export async function anchorRun(runId: number): Promise<number> {
       listeners: a.listeners * k,
       listeners30: a.listeners30 * k,
       listeners90: a.listeners90 * k,
-      logReturns: [],
-      listenerTrail: [],
-      dirty: false,
     };
     next.tier = classifyTier(next.listeners);
     next.trueQuality = Math.min(0.98, Math.max(0.05, qualityForListeners(anchor) + r.normal(0, 0.01)));
@@ -691,11 +716,11 @@ export async function anchorRun(runId: number): Promise<number> {
   }, { timeout: 120_000 });
 
   // Month ranks are relative, so every month in the window is re-ranked.
-  const rows = (await prisma.artistMonth.findMany({
+  const monthRows = await prisma.artistMonth.findMany({
     where: { artist: { runId } },
     select: { id: true, monthKey: true, listeners: true, rank: true },
-  })) as { id: number; monthKey: number; listeners: number; rank: number }[];
-  const ranked = rows.map((r) => ({ ...r, old: r.rank }));
+  });
+  const ranked = monthRows.map((r) => ({ id: r.id, monthKey: r.monthKey, listeners: r.listeners, rank: r.rank, old: r.rank }));
   rankMonths(ranked);
   const moved = ranked.filter((r) => r.rank !== r.old);
   await prisma.$transaction(async (tx) => {
