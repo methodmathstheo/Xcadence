@@ -33,7 +33,7 @@ const DEADLINE_MS = 240_000;
  * Each category's read is stamped with it, and a stamp from another version
  * does not count.
  */
-const CATEGORY_SET_VERSION = "v3";
+const CATEGORY_SET_VERSION = "v4";
 
 const CATEGORIES: { title: string; chart: Chart; country?: string }[] = [
   // Rap and drill
@@ -61,6 +61,46 @@ const CATEGORIES: { title: string; chart: Chart; country?: string }[] = [
   { title: "UK drill musicians", chart: "rap", country: "GB" },
   { title: "British drill musicians", chart: "rap", country: "GB" },
   { title: "Drill musicians", chart: "rap" },
+  // Era, scene and heritage categories catch rappers filed outside the
+  // nationality ones; the chart is the same either way.
+  { title: "21st-century American rappers", chart: "rap", country: "US" },
+  { title: "20th-century American rappers", chart: "rap", country: "US" },
+  { title: "African-American male rappers", chart: "rap", country: "US" },
+  { title: "African-American women rappers", chart: "rap", country: "US" },
+  { title: "Trap musicians", chart: "rap" },
+  { title: "Southern hip hop musicians", chart: "rap", country: "US" },
+  { title: "West Coast hip hop musicians", chart: "rap", country: "US" },
+  { title: "East Coast hip hop musicians", chart: "rap", country: "US" },
+  { title: "Midwest hip hop musicians", chart: "rap", country: "US" },
+  { title: "Gangsta rappers", chart: "rap" },
+  { title: "Hardcore hip hop artists", chart: "rap" },
+  { title: "Alternative hip hop musicians", chart: "rap" },
+  { title: "Underground rappers", chart: "rap" },
+  { title: "Rappers from New York City", chart: "rap", country: "US" },
+  { title: "Rappers from Atlanta", chart: "rap", country: "US" },
+  { title: "Rappers from Los Angeles", chart: "rap", country: "US" },
+  { title: "Rappers from Chicago", chart: "rap", country: "US" },
+  { title: "Rappers from Houston", chart: "rap", country: "US" },
+  { title: "Rappers from Detroit", chart: "rap", country: "US" },
+  { title: "Rappers from Memphis, Tennessee", chart: "rap", country: "US" },
+  { title: "Rappers from Philadelphia", chart: "rap", country: "US" },
+  { title: "Rappers from Miami", chart: "rap", country: "US" },
+  { title: "Rappers from New Orleans", chart: "rap", country: "US" },
+  { title: "Rappers from Baltimore", chart: "rap", country: "US" },
+  { title: "Rappers from Dallas", chart: "rap", country: "US" },
+  { title: "Rappers from Oakland, California", chart: "rap", country: "US" },
+  { title: "Rappers from Toronto", chart: "rap", country: "CA" },
+  { title: "21st-century British rappers", chart: "rap", country: "GB" },
+  { title: "20th-century British rappers", chart: "rap", country: "GB" },
+  { title: "Black British male rappers", chart: "rap", country: "GB" },
+  { title: "English hip hop musicians", chart: "rap", country: "GB" },
+  { title: "British hip hop musicians", chart: "rap", country: "GB" },
+  { title: "Rappers from London", chart: "rap", country: "GB" },
+  { title: "Rappers from Birmingham, West Midlands", chart: "rap", country: "GB" },
+  { title: "Rappers from Manchester", chart: "rap", country: "GB" },
+  { title: "Australian male rappers", chart: "rap", country: "AU" },
+  { title: "Australian women rappers", chart: "rap", country: "AU" },
+  { title: "New Zealand rappers", chart: "rap", country: "NZ" },
   // R&B and soul
   { title: "American contemporary R&B singers", chart: "rnb", country: "US" },
   { title: "American rhythm and blues singers", chart: "rnb", country: "US" },
@@ -77,6 +117,12 @@ const CATEGORIES: { title: string; chart: Chart; country?: string }[] = [
   { title: "British contemporary R&B musical groups", chart: "rnb", country: "GB" },
   { title: "Canadian contemporary R&B singers", chart: "rnb", country: "CA" },
   { title: "Canadian soul singers", chart: "rnb", country: "CA" },
+  { title: "Alternative R&B musicians", chart: "rnb" },
+  { title: "American contemporary R&B musicians", chart: "rnb", country: "US" },
+  { title: "21st-century American R&B singers", chart: "rnb", country: "US" },
+  { title: "20th-century American R&B singers", chart: "rnb", country: "US" },
+  { title: "New jack swing musicians", chart: "rnb", country: "US" },
+  { title: "Australian contemporary R&B singers", chart: "rnb", country: "AU" },
   // House
   { title: "American house musicians", chart: "house", country: "US" },
   { title: "English house musicians", chart: "house", country: "GB" },
@@ -106,6 +152,24 @@ const CATEGORIES: { title: string; chart: Chart; country?: string }[] = [
   { title: "English house music groups", chart: "house", country: "GB" },
   { title: "American house music groups", chart: "house", country: "US" },
   { title: "House music DJs", chart: "house" },
+  { title: "Electro house musicians", chart: "house" },
+  { title: "Progressive house musicians", chart: "house" },
+  { title: "Tropical house musicians", chart: "house" },
+  { title: "Future house musicians", chart: "house" },
+  { title: "Afro house musicians", chart: "house" },
+  { title: "Hip house musicians", chart: "house" },
+  { title: "Ghetto house musicians", chart: "house" },
+  { title: "Microhouse musicians", chart: "house" },
+  { title: "Danish house musicians", chart: "house", country: "DK" },
+  { title: "Norwegian house musicians", chart: "house", country: "NO" },
+  { title: "Swiss house musicians", chart: "house", country: "CH" },
+  { title: "Russian house musicians", chart: "house", country: "RU" },
+  { title: "Brazilian house musicians", chart: "house", country: "BR" },
+  { title: "Japanese house musicians", chart: "house", country: "JP" },
+  { title: "Israeli house musicians", chart: "house", country: "IL" },
+  { title: "Argentine house musicians", chart: "house", country: "AR" },
+  { title: "Mexican house musicians", chart: "house", country: "MX" },
+  { title: "New Zealand house musicians", chart: "house", country: "NZ" },
 ];
 
 /** Article titles that are not artists, whatever category they sit in. */
