@@ -15,7 +15,7 @@ import type { Tier } from "@/lib/sim/constants";
 import { getOrCreateRun, resetRun } from "@/lib/sim/run";
 import { anchorRun, syncRoster } from "@/lib/sim/universe";
 import { ensureListenerSnapshot } from "@/lib/music/listeners";
-import { ensureRosterCandidates } from "@/lib/music/wikipedia-roster";
+import { BOOT_BUDGET_MS, ensureRosterCandidates } from "@/lib/music/wikipedia-roster";
 import { runOrderFlow } from "@/lib/engine/bots";
 import { spawnArtists } from "@/lib/engine/entry";
 import { accrueRoyalties, refreshOfferings } from "@/lib/engine/offerings";
@@ -128,7 +128,7 @@ class Engine {
     // roster names added since this run was created, without a reseed.
     // Neither failure may stop the venue coming up.
     await ensureListenerSnapshot();
-    await ensureRosterCandidates();
+    await ensureRosterCandidates(BOOT_BUDGET_MS);
     await anchorRun(run.id).catch((e) => console.error("[anchor] failed", e));
     await syncRoster(run.id).catch((e) => console.error("[roster] sync failed", e));
     const [artists, bots, accounts, positions, offerings, offeringPositions] =
@@ -361,17 +361,17 @@ class Engine {
    * without a reboot. Called hourly from instrumentation; every step is
    * tolerant of failure because none of it may stop the clock.
    */
-  async maintainRoster(): Promise<number> {
+  async maintainRoster(): Promise<{ added: number; remaining: number }> {
     const w = this.world;
-    if (!w) return 0;
+    if (!w) return { added: 0, remaining: 0 };
     await ensureListenerSnapshot();
-    await ensureRosterCandidates();
+    const { remaining } = await ensureRosterCandidates();
     let added: ArtistState[] = [];
     try {
       added = await syncRoster(w.runId);
     } catch (e) {
       console.error("[roster] sync failed", e);
-      return 0;
+      return { added: 0, remaining };
     }
     // The sync wrote rows the loaded world has never seen; splice them in so
     // they quote and trade like everything else.
@@ -391,7 +391,7 @@ class Engine {
         magnitude: 0,
       });
     }
-    return added.length;
+    return { added: added.length, remaining };
   }
 
   private hooksInstalled = false;

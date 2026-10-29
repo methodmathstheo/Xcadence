@@ -18,10 +18,13 @@ import { nameKey } from "@/lib/music/name-key";
 import type { Chart } from "@/lib/sim/roster-data";
 
 const API = "https://en.wikipedia.org/w/api.php";
-const UA = "xcadence/0.1 ( royalty-exchange-simulation; roster discovery )";
+/** Wikimedia asks for a descriptive agent with a way to reach the operator. */
+const UA = "xcadence/0.1 (+https://www.xcadencemusic.ai; roster discovery; royalty-exchange simulation)";
 const STALE_MS = 7 * 24 * 3600 * 1000;
-/** Boot waits on this, so it gives up rather than run long. */
-const DEADLINE_MS = 240_000;
+/** A pass stops at its budget and leaves the rest for the next tick. */
+export const TICK_BUDGET_MS = 240_000;
+/** Boot waits on its pass, so it gets a shorter budget than a tick. */
+export const BOOT_BUDGET_MS = 60_000;
 
 /**
  * Category → chart and country. Order matters where an artist sits in more
@@ -267,7 +270,9 @@ const PRIORITY_SQL = `CASE %s WHEN 'rap' THEN 0 WHEN 'rnb' THEN 1 ELSE 2 END`;
  * recording when, and a pass that runs out of time or gets throttled leaves
  * the rest for the next hourly tick. Returns how many categories were read.
  */
-export async function refreshRosterCandidates(): Promise<number> {
+export type RefreshResult = { read: number; remaining: number };
+
+export async function refreshRosterCandidates(budgetMs = TICK_BUDGET_MS): Promise<RefreshResult> {
   const stamps = (await prisma.$queryRawUnsafe(
     `SELECT "key", "source", "fetchedAt" FROM "RosterCandidate" WHERE substr("key", 1, 6) = '__cat:'`,
   )) as { key: string; source: string; fetchedAt: number }[];
@@ -277,9 +282,9 @@ export async function refreshRosterCandidates(): Promise<number> {
       .map((r) => [r.key.slice("__cat:".length), Number(r.fetchedAt)] as [string, number]),
   );
   const todo = CATEGORIES.filter((c) => Date.now() - (readAt.get(c.title) ?? 0) > STALE_MS);
-  if (todo.length === 0) return 0;
+  if (todo.length === 0) return { read: 0, remaining: 0 };
 
-  const deadline = Date.now() + DEADLINE_MS;
+  const deadline = Date.now() + budgetMs;
   const unread: string[] = [];
   let read = 0;
   for (const c of todo) {
@@ -310,7 +315,7 @@ export async function refreshRosterCandidates(): Promise<number> {
     )) as { n: number | bigint }[])[0]?.n ?? 0,
   );
   console.log(`[roster] read ${read} of ${todo.length} categories due; ${total} candidates stored`);
-  return read;
+  return { read, remaining: todo.length - read };
 }
 
 /**
@@ -348,12 +353,13 @@ function q(s: string): string {
   return `'${s.replace(/'/g, "''")}'`;
 }
 
-/** Read whatever is due. Never throws. */
-export async function ensureRosterCandidates(): Promise<void> {
+/** Read whatever is due within the budget. Never throws. */
+export async function ensureRosterCandidates(budgetMs = TICK_BUDGET_MS): Promise<RefreshResult> {
   try {
-    await refreshRosterCandidates();
+    return await refreshRosterCandidates(budgetMs);
   } catch (e) {
     console.error("[roster] candidate refresh failed", e);
+    return { read: 0, remaining: 0 };
   }
 }
 
