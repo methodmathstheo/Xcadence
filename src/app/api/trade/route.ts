@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { engine } from "@/lib/engine/engine";
 import { unauthorized, withBook } from "@/lib/auth/guard";
+import { limited, readJson } from "@/lib/http/limits";
 import { executeTrade, TradeError } from "@/lib/engine/trading";
 import { maxBuyForCredits, quoteTrade, lmsrMaxLoss } from "@/lib/sim/lmsr";
 import { dcf, estimateInputs } from "@/lib/quant/dcf";
@@ -46,13 +47,17 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const body = await req.json().catch(() => ({}));
+  const parsed = await readJson(req);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.body;
   const artistId = Number(body?.artistId);
   const qty = Number(body?.qty);
 
   const ctx = await withBook();
   if (!ctx) return unauthorized();
   const { w, book } = ctx;
+  const slow = limited(req, "trade", ctx.user.id);
+  if (slow) return slow;
   try {
     const fill = executeTrade(w, artistId, qty, { kind: "USER", book }, { allowShort: true });
     // Persist immediately: a user trade is not something to lose to a crash in

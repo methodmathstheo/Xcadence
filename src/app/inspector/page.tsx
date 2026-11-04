@@ -34,9 +34,19 @@ interface Payload {
 export default function InspectorPage() {
   const { avatars } = useAvatars();
   const [d, setD] = useState<Payload | null>(null);
+  const [denied, setDenied] = useState<string | null>(null);
 
   const load = useCallback(() => {
-    fetch("/api/inspector").then((r) => r.json()).then(setD).catch(() => {});
+    fetch("/api/inspector")
+      .then(async (r) => {
+        if (!r.ok) {
+          const body = await r.json().catch(() => ({}));
+          setDenied(typeof body?.error === "string" ? body.error : "Not available.");
+          return;
+        }
+        setD(await r.json());
+      })
+      .catch(() => {});
   }, []);
   useEffect(() => {
     load();
@@ -44,6 +54,7 @@ export default function InspectorPage() {
     return () => clearInterval(t);
   }, [load]);
 
+  if (denied) return <div className="label px-4 py-16 text-center">{denied}</div>;
   if (!d) return <div className="label px-4 py-16 text-center">Reading ground truth…</div>;
   const e = d.efficiency;
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { engine } from "@/lib/engine/engine";
+import { currentOwner } from "@/lib/auth/owner";
 import { dcf, estimateInputs } from "@/lib/quant/dcf";
 import { targetListeners } from "@/lib/sim/dynamics";
 import { pearson } from "@/lib/quant/cohort";
@@ -20,6 +21,14 @@ export const dynamic = "force-dynamic";
  * an artefact of the market being told the answer.
  */
 export async function GET() {
+  // The answer sheet. Signed-in is not enough: a guest account is a click
+  // away, and with this a trader could price every market off its true value.
+  const { user, owner } = await currentOwner();
+  if (!user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+  if (!owner) {
+    return NextResponse.json({ error: "Ground truth is the venue owner's alone." }, { status: 403 });
+  }
+
   const w = await engine.ensureLoaded();
 
   const rows = [];

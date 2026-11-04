@@ -175,3 +175,22 @@ pages link back to the source for each. No affiliation with, or endorsement by,
 any artist named in `real` mode is implied.
 
 Virtual currency sandbox. Not a financial product.
+
+## Security
+
+- Passwords are scrypt-hashed (N=2^15); session tokens are 256-bit random and
+  stored only as SHA-256 digests, in an httpOnly, Secure, SameSite=Lax cookie.
+- Every API request that changes state must come from this origin
+  (Sec-Fetch-Site / Origin are checked in `src/proxy.ts`), on top of the
+  SameSite cookie.
+- Rate limits (`src/lib/http/limits.ts`): sign-in per address and per
+  account, registration and guest creation per address and venue-wide,
+  clock controls, trading, lab tools, profile lookups, event-stream
+  connections, and a per-address backstop across the API. JSON bodies are
+  capped at 16 KB.
+- Ground truth (`/api/inspector`) and reseeding are the venue owner's alone
+  (`XCADENCE_OWNER_EMAIL`).
+- Security headers: CSP, HSTS, nosniff, frame denial, referrer and
+  permissions policies. The image optimizer endpoint is disabled.
+- The container runs as an unprivileged user; the database lives on the
+  mounted volume and is never served. Dependabot watches the dependencies.

@@ -4,6 +4,7 @@ import { engine } from "@/lib/engine/engine";
 import { prisma } from "@/lib/db";
 import { currentUser } from "@/lib/auth/session";
 import { isOwner } from "@/lib/auth/owner";
+import { readJson } from "@/lib/http/limits";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -29,7 +30,9 @@ export async function POST(req: Request) {
     );
   }
 
-  const body = await req.json().catch(() => ({}));
+  const parsed = await readJson(req);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.body;
   const seed = Number.isFinite(Number(body?.seed)) ? Number(body.seed) : DEFAULT_SEED;
   // Always reseed through the engine. Replacing the run underneath a loaded
   // world orphans it — the clock keeps ticking against a deleted run and every

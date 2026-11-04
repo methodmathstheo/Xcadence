@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { engine } from "@/lib/engine/engine";
 import { chartOf, isDemo } from "@/lib/sim/names";
+import { limited } from "@/lib/http/limits";
 import { genreIsReal, parseGenres, primaryGenre } from "@/lib/music/genre";
 import { fetchOpenProfile } from "@/lib/music/openmusic";
 import { fmtSimDate } from "@/lib/sim/time";
@@ -24,7 +25,10 @@ const CACHE_MS = 30 * 24 * 60 * 60 * 1000;
  * The `about` block is the opposite: it is entirely simulation output and is
  * labelled as such wherever it appears.
  */
-export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
+export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  // A miss here reaches Wikipedia and MusicBrainz on the caller's behalf.
+  const slow = limited(req, "profile");
+  if (slow) return slow;
   const { id: raw } = await ctx.params;
   const id = Number(raw);
   const w = await engine.ensureLoaded();

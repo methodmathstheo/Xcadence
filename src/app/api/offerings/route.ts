@@ -6,6 +6,7 @@ import { dcf, estimateInputs } from "@/lib/quant/dcf";
 import { monthKey } from "@/lib/sim/time";
 import { cohortStats } from "@/lib/quant/cohort";
 import { unauthorized, withBook } from "@/lib/auth/guard";
+import { limited, readJson } from "@/lib/http/limits";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -148,12 +149,16 @@ export async function GET() {
 
 /** Allocate credits to an open offering. */
 export async function POST(req: Request) {
-  const body = await req.json().catch(() => ({}));
+  const parsed = await readJson(req);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.body;
   const offeringId = Number(body?.offeringId);
   const credits = Number(body?.credits);
 
   const auth = await withBook();
   if (!auth) return unauthorized();
+  const slow = limited(req, "offerings", auth.user.id);
+  if (slow) return slow;
   const { w, book, user } = auth;
   const o = w.offerings.find((x) => x.id === offeringId);
   if (!o) return NextResponse.json({ error: "no such offering" }, { status: 404 });

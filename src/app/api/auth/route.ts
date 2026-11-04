@@ -5,11 +5,16 @@ import { engine } from "@/lib/engine/engine";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { createSession, currentUser, destroySession } from "@/lib/auth/session";
 import { createGuest, GUEST_TTL_MS } from "@/lib/auth/guests";
+import { limited, LIMITS, readJson, take, tooMany } from "@/lib/http/limits";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MIN_PASSWORD = 8;
+/** scrypt is happy with far more; this just keeps the request honest. */
+const MAX_PASSWORD = 200;
+/** RFC 5321's limit on an address. */
+const MAX_EMAIL = 254;
 
 /** Whoami, for the header and the landing page. */
 export async function GET() {
@@ -24,7 +29,9 @@ export async function GET() {
  * sees is funded cash rather than an empty portfolio that fills in later.
  */
 export async function POST(req: Request) {
-  const body = await req.json().catch(() => ({}));
+  const parsed = await readJson(req);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.body;
   const action = String(body?.action ?? "");
 
   if (action === "signout") {
@@ -33,6 +40,14 @@ export async function POST(req: Request) {
   }
 
   if (action === "guest") {
+    // Per address, then for the venue as a whole: a guest costs a scrypt and
+    // a row, and nothing about "try as guest" should let one party mint
+    // thousands of them.
+    const perIp = limited(req, "guest");
+    if (perIp) return perIp;
+    const everyone = take("guest:all", LIMITS.guestGlobal);
+    if (!everyone.ok) return tooMany(everyone.retryAfterMs);
+
     const user = await createGuest();
     await createSession(user.id, GUEST_TTL_MS);
     await openBook(user.id);
@@ -42,11 +57,15 @@ export async function POST(req: Request) {
   const email = String(body?.email ?? "").trim().toLowerCase();
   const password = String(body?.password ?? "");
 
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  if (email.length > MAX_EMAIL || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return bad("Enter a valid email address.");
   }
+  if (password.length > MAX_PASSWORD) return bad("That password is too long.");
 
   if (action === "register") {
+    const slow = limited(req, "register");
+    if (slow) return slow;
+
     const displayName = String(body?.displayName ?? "").trim() || email.split("@")[0];
     if (password.length < MIN_PASSWORD) {
       return bad(`Use at least ${MIN_PASSWORD} characters.`);
@@ -77,6 +96,11 @@ export async function POST(req: Request) {
   }
 
   if (action === "signin") {
+    // Ten tries, then one a minute, per address. Enough for anyone who has
+    // forgotten which password they used; nothing like enough to guess one.
+    const slow = limited(req, "signin") ?? limited(req, "signinAccount", email);
+    if (slow) return slow;
+
     const row = await prisma.user.findUnique({ where: { email } });
     // Hash against a throwaway on a miss so a wrong email and a wrong password
     // take the same time to come back.

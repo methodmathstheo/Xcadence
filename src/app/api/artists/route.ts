@@ -3,6 +3,7 @@ import { engine } from "@/lib/engine/engine";
 import { SimulatedDataProvider } from "@/lib/data/simulated";
 import { dcf, estimateInputs } from "@/lib/quant/dcf";
 import { chartOf } from "@/lib/sim/names";
+import { readJson } from "@/lib/http/limits";
 import { primaryGenre, parseGenres } from "@/lib/music/genre";
 import { prisma } from "@/lib/db";
 import type { ArtistSummary } from "@/lib/data/provider";
@@ -76,7 +77,9 @@ export async function GET(req: Request) {
 
 /** Kept so the provider seam is exercised rather than merely declared. */
 export async function POST(req: Request) {
-  const body = await req.json().catch(() => ({}));
+  const parsed = await readJson(req);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.body;
   const w = await engine.ensureLoaded();
   const provider = new SimulatedDataProvider(w.runId);
   if (body?.what === "chart") {
