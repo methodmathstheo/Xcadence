@@ -21,7 +21,7 @@
     "@types/react-dom": "^19",
     "prisma": "^6.19.3",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^7"
   },
   "allowScripts": {
     "@prisma/engines@6.19.3": true,
