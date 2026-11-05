@@ -24,7 +24,15 @@ export const viewport: Viewport = {
   themeColor: "#161825",
 };
 
+/** The venue's one public address; link previews and canonical URLs resolve against it. */
+const SITE_URL = process.env.XCADENCE_CANONICAL_HOST
+  ? `https://${process.env.XCADENCE_CANONICAL_HOST.trim()}`
+  : "https://www.xcadencemusic.ai";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
+  alternates: { canonical: "/" },
+  openGraph: { siteName: "xcadencemusic.ai", url: SITE_URL, type: "website" },
   title: "xcadence — royalty exchange",
   // Names the installed app on a home screen, where the full title is too long.
   applicationName: "xcadence",

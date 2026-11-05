@@ -31,6 +31,20 @@ const PUBLIC = new Set(["/", "/login", "/welcome"]);
 export function proxy(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
 
+  // One address for the venue. A request that arrives for any other host —
+  // the Railway service domain, an old link — is sent to the canonical one,
+  // with its path and query intact, permanently and method-preserving.
+  const canonical = process.env.XCADENCE_CANONICAL_HOST?.trim().toLowerCase();
+  if (canonical) {
+    const host = (req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? "")
+      .split(",")[0]
+      .trim()
+      .toLowerCase();
+    if (host && host !== canonical && !LOCAL_HOSTS.has(host.replace(/:\d+$/, ""))) {
+      return NextResponse.redirect(`https://${canonical}${pathname}${search}`, 308);
+    }
+  }
+
   if (pathname.startsWith("/api/")) {
     if (!SAFE_METHODS.has(req.method) && crossSite(req)) {
       return NextResponse.json({ error: "Cross-site request refused." }, { status: 403 });
@@ -68,6 +82,9 @@ export function proxy(req: NextRequest) {
 }
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+/** Never redirected: a developer's own machine, whatever the variable says. */
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]", "0.0.0.0"]);
 
 /**
  * True when the browser says this request was made from another site.
